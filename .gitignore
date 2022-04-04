@@ -1,2 +1,6 @@
-data/
+Data*
+data*
+Models/
 models/
+Test*
+test*
