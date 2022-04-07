@@ -1,0 +1,9 @@
+# Should be put into the root of the dataset directory
+path: ../data_all
+train: train/img
+val: train/img
+test: test/img
+
+# The one and only
+nc: 1
+names: [ 'rod' ]
