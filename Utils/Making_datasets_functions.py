@@ -15,23 +15,6 @@ def insert_matrix(arr, x_begin, y_begin, new_shape):
     if answer.shape[1] < new_shape[1]:
         answer = np.hstack((answer, np.zeros((answer.shape[0], new_shape[1]-answer.shape[1]))))
     return answer
-    
-def generate_colour(n):
-    if n<3:
-        ans = np.zeros(3)
-        ans[n] = 255
-        return ans
-    if n<6:
-        ans = 255*np.ones(3)
-        ans[n-3] = 0
-        return ans
-    if n==6:
-        return 255*np.ones(3)
-    if(n<14):
-        return generate_colour(n-7)//2
-    np.random.seed(n)
-    ans = np.random.randint(0, high=255, size=3)
-    return ans
 
 def make_masks(data_dir, res_folder, ann_folder='ann', img_folder='img', echo=False):
     ann_files = os.listdir(os.path.join(data_dir, ann_folder))
@@ -42,10 +25,10 @@ def make_masks(data_dir, res_folder, ann_folder='ann', img_folder='img', echo=Fa
             img_name = fname.split('.')[0]
             image = cv2.imread(os.path.join(data_dir, img_folder, img_name + '.png'))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            result = np.zeros(image.shape)
             
             data = json.load(json_file)
             if data['objects']:
+                result = np.zeros((image.shape[0], image.shape[1], len(data['objects']))
                 for n, subject in enumerate(data['objects']):
                     if echo:
                         print(subject['id'])
@@ -53,17 +36,10 @@ def make_masks(data_dir, res_folder, ann_folder='ann', img_folder='img', echo=Fa
                     x_min = subject['bitmap']['origin'][0]
                     y_min = subject['bitmap']['origin'][1]
                     mask = insert_matrix(mask, x_min, y_min, image.shape)
-                    # remove_intersections:
-                    result[:,:,0] -= mask*result[:,:,0]
-                    result[:,:,1] -= mask*result[:,:,1]
-                    result[:,:,2] -= mask*result[:,:,2]
-                    colour = generate_colour(n)
-                    result[:,:,0] += mask*colour[0]
-                    result[:,:,1] += mask*colour[1]
-                    result[:,:,2] += mask*colour[2]
+                    result[:,:,n] = mask
                     
-            file_name = os.path.join(res_folder, img_name + '_mask' + '.png')
-            cv2.imwrite(file_name, result)
+                file_name = os.path.join(res_folder, img_name + '_mask' + '.png')
+                cv2.imwrite(file_name, result)
 
 def crop_blocks(data_dir, res_folder, ann_folder='ann', img_folder='img', echo=False):
     ann_files = os.listdir(os.path.join(data_dir, ann_folder))
