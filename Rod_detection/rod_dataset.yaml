@@ -1,7 +1,7 @@
 # Should be put into the root of the dataset directory
-path: ../data
-train: img/train
-val: img/valid
+path: ../datasets/rod_data
+train: images/train
+val: images/valid
 
 # The one and only
 nc: 1
