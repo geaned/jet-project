@@ -28,7 +28,7 @@ def make_masks(data_dir, res_folder, ann_folder='ann', img_folder='img', echo=Fa
             
             data = json.load(json_file)
             if data['objects']:
-                result = np.zeros((image.shape[0], image.shape[1], len(data['objects']))
+                result = np.zeros((image.shape[0], image.shape[1], len(data['objects'])))
                 for n, subject in enumerate(data['objects']):
                     if echo:
                         print(subject['id'])
