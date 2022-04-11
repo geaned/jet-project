@@ -5,3 +5,4 @@ models/
 Test*
 test*
 yolov5/
+*__pycache__/
