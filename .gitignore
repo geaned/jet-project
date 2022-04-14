@@ -6,3 +6,4 @@ Test*
 test*
 yolov5/
 *__pycache__/
+*.tar.gz
