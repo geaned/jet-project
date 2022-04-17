@@ -4,6 +4,7 @@ Models/
 models/
 Test*
 test*
-yolov5/
-*__pycache__/
+yolov5*/
+*/__pycache__/
 *.tar.gz
+*/wandb/

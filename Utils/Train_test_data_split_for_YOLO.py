@@ -1,7 +1,5 @@
 import os
 import random
-from sklearn.model_selection import train_test_split
-
 import shutil
 
 
@@ -20,11 +18,11 @@ random.seed(42)
 
 TEST_SIZE = 0.2
 
-DATA_TO_SPLIT = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'data_all')
-DATA_TO_POPULATE = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'data')
+DATA_TO_SPLIT = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'svhn_all')
+DATA_TO_POPULATE = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'datasets/svhn')
 
 # these two should be created in DATA_TO_POPULATE with 'train' and 'valid' subfolders
-IMG_FOLDER = 'img'
+IMG_FOLDER = 'images'
 LABEL_FOLDER = 'labels'
 
 found_prefixes = list(name.replace('.png', '') for name in os.listdir(os.path.join(DATA_TO_SPLIT, IMG_FOLDER)))

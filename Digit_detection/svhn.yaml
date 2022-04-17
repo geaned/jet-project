@@ -1,0 +1,8 @@
+# Should be put into the root of the dataset directory
+path: ../datasets/svhn
+train: images/train
+val: images/valid
+
+# The one and only
+nc: 10
+names: [ 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine' ]
