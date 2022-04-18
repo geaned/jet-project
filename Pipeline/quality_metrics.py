@@ -6,7 +6,7 @@ from typing import Tuple
 import numpy as np
 import scipy.ndimage as snd
 
-from detection_box_array import DetectionBoxDataArray
+from detection_box_array import DetectionBoxDataArray, DetectionBoxData
 
 def sta6_optimized(gray_img: np.ndarray, conv_size: int = 5, stride: int = 1):
     image_intensity = gray_img / 255
@@ -77,4 +77,43 @@ def global_check_after_detection(detection_box_data_array: DetectionBoxDataArray
     if global_rods_on_periphery(detection_box_data_array):
         return False, 'Rods are on the image periphery'
     
+    return True, ''
+
+def local_highlight(gray_img: np.ndarray) -> bool:
+    """returns True, if cropped image is too bright"""
+    intensity = gray_img / 255
+    mean_intensity = np.mean(intensity)
+    return mean_intensity > 0.912
+
+def local_too_blurry(gray_img: np.ndarray) -> bool:
+    """returns True, if cropped image is too blurry"""
+    return sta6_optimized(gray_img) * 1e7 <= 688.078
+
+def local_rotated_too_much(gray_img: np.ndarray) -> bool:
+    """returns True, if rod image is rotated too much"""
+    height, width = gray_img.shape
+    size_ratio = min(height, width) / max(height, width)
+    return size_ratio < 0.811
+
+def local_small_rod_square(height: float, width: float) -> bool:
+    """
+    Args: height and width are float from 0 to 1
+    Returns: True if rod square is too small
+    """
+    return height * width < 0.0058
+
+def local_check_after_detection(path_to_image, detection_box: DetectionBoxData) -> Tuple[bool, str]:
+    image = cv2.imread(path_to_image)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    data = detection_box.get_data()['bounding_box']
+    height, width = data['height'], data['width']
+    if local_highlight(gray):
+        return False, 'Image is too bright'
+    if local_too_blurry(gray):
+        return False, 'Image is too blurry'
+    if local_rotated_too_much(gray):
+        return False, 'Rod is rotated too much'
+    if local_small_rod_square(height, width):
+        return False, 'Rod square is too small'
+
     return True, ''
