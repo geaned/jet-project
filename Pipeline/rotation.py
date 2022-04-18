@@ -86,7 +86,7 @@ def rotate_to_horizontal(file_names, model_path):
         result_file_name = os.path.join('rotation_results', file_name)
         print(f'Rotating and saving crop to {result_file_name}...')
         
-        if masks_by_file_name[file_name].sum == 0:
+        if masks_by_file_name[file_name].sum() == 0:
             print(f'Can\'t rotate {file_name}, text area not found')
             continue
         angle = optimal_angle(masks_by_file_name[file_name], clusterization=True)
