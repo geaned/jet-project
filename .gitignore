@@ -8,3 +8,4 @@ yolov5*/
 */__pycache__/
 *.tar.gz
 */wandb/
+*.idea/
