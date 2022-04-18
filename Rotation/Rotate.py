@@ -71,5 +71,3 @@ def rotate_to_horizontal(filenames):
         angle = optimal_angle(masks[i], clasterization=True)
         out_path = os.path.join('./rotation_results', filenames[i])
         cv2.imwrite(out_path, imutils.rotate_bound(images[i], angle=angle))
-
-rotate_to_horizontal(['IMG_1748_ROD_901072579.png', 'IMG_1748_ROD_901073762.png'])
