@@ -8,7 +8,7 @@ def global_quality_check():
     pass
 
 
-IMAGES_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'datasets_not_split/data_all/img')
+IMAGES_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'datasets_not_split/data_all/img') # 
 YOLO_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'yolov5')
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rod_detection')
 DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Digit_detection')
@@ -17,9 +17,14 @@ ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
 # run detection
 os.system(f'python {os.path.join(YOLO_FOLDER, "detect.py")} --source {IMAGES_FOLDER} --img 1080 --weights {os.path.join(ROD_DETECTION_FOLDER, "rod_weights.pt")} --save-txt')
 
+
 # find and gather label files
 detect_folder = os.path.join(YOLO_FOLDER, "runs/detect")
-rod_detection_results_folder = os.path.join(detect_folder, os.listdir(detect_folder)[-1], "labels") # actually should search for max index
+latest_exp = max(
+    os.listdir(detect_folder),
+    key=lambda file_name: int(file_name.replace('exp', '') if file_name != 'exp' else '1'),
+)
+rod_detection_results_folder = os.path.join(detect_folder, latest_exp, "labels")
 print(f'Checking rod detection results folder {rod_detection_results_folder}')
 
 rod_detection_results_files = [os.path.join(rod_detection_results_folder, file_name) for file_name in os.listdir(rod_detection_results_folder)]
@@ -38,6 +43,7 @@ for file_name in rod_detection_results_files:
             current_detection_box_data_array.append(DetectionBoxData(class_num, center_x, center_y, width, height))
 
     detection_box_data_arrays.append(DetectionBoxDataArray(file_name.split('/')[-1].replace('.txt', '.png'), current_detection_box_data_array))
+
 
 # make a folder for cropped_images
 try:
