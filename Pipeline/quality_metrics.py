@@ -112,8 +112,8 @@ def local_check_after_detection(path_to_image, detection_box: DetectionBoxData) 
     if local_too_blurry(gray):
         return False, 'Image is too blurry'
     if local_rotated_too_much(gray):
-        return False, 'Rod is rotated too much'
+        return False, 'Crop area is too thin'
     if local_small_rod_square(height, width):
-        return False, 'Rod square is too small'
+        return False, 'Crop square is too small'
 
     return True, ''

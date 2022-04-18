@@ -37,7 +37,7 @@ def optimal_angle(mask, clusterization=False):
         answer -= 180
     return answer
 
-def detect_text(images_by_filename, model_path):
+def detect_text(images_by_file_path, model_path):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     try:
@@ -53,11 +53,10 @@ def detect_text(images_by_filename, model_path):
     preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
     
     # get filenames and output progress
-    masks_by_file_name = {}
-    for file_name in images_by_filename:
-        file_path = os.path.join('crop_results', file_name)
-        print(f'Calculating text mask on {file_path}...')
-        img = images_by_filename[file_name]
+    masks_by_file_path = {}
+    for file_path in images_by_file_path:
+        print(f'Evaluating text mask on {file_path}...')
+        img = images_by_file_path[file_path]
         image = cv2.resize(preprocessing_fn(img), (640, 640))
         x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
         x_tensor = x_tensor.permute(0, 3, 1,2)
@@ -67,27 +66,31 @@ def detect_text(images_by_filename, model_path):
         pr_mask = (pr_mask > 0.5).squeeze().cpu()
         pr_mask = np.array(pr_mask, dtype=float)
         pr_mask = cv2.resize(pr_mask, (img.shape[0], img.shape[1]))
-        masks_by_file_name[file_name] = pr_mask
-    return masks_by_file_name
+        masks_by_file_path[file_path] = pr_mask
+    return masks_by_file_path
 
-def rotate_to_horizontal(file_names, model_path):
+def rotate_to_horizontal(file_paths, model_path):
     print('Parsing crops...')
-    images_by_file_name = {}
-    for file_name in file_names:
-        path = os.path.join('crop_results', file_name)
-        image = cv2.imread(path)
+    images_by_file_path = {}
+    for file_path in file_paths:
+        image = cv2.imread(file_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        images_by_file_name[file_name] = image
+        images_by_file_path[file_path] = image
 
     print('Looking for text masks on crops...')
-    masks_by_file_name = detect_text(images_by_file_name, model_path)
+    masks_by_file_path = detect_text(images_by_file_path, model_path)
     
-    for file_name in file_names:
-        result_file_name = os.path.join('rotation_results', file_name)
-        print(f'Rotating and saving crop to {result_file_name}...')
+    for file_path in file_paths:
+        file_name = file_path.split('/')[-1]
+        print(f'Rotating and saving crop to {file_path}... ', end='')
         
-        if masks_by_file_name[file_name].sum == 0:
-            print(f'Can\'t rotate {file_name}, text area not found')
+        if masks_by_file_path[file_path].sum() == 0:
+            print(f'Failed! Text area not found')
             continue
-        angle = optimal_angle(masks_by_file_name[file_name], clusterization=True)
-        cv2.imwrite(result_file_name, imutils.rotate_bound(images_by_file_name[file_name], angle=angle))
+        print()
+
+        angle = optimal_angle(masks_by_file_path[file_path], clusterization=True)
+        cv2.imwrite(
+            os.path.join('rotation_results', file_name),
+            imutils.rotate_bound(images_by_file_path[file_path], angle=angle),
+        )

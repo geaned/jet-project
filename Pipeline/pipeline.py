@@ -3,7 +3,7 @@ import argparse
 from PIL import Image
 
 from detection_box_array import DetectionBoxData, DetectionBoxDataArray
-from quality_metrics import global_check_before_detection, global_check_after_detection
+from quality_metrics import global_check_before_detection, global_check_after_detection, local_check_after_detection
 from rotation import rotate_to_horizontal
 
 
@@ -94,7 +94,20 @@ for detection_box_data_array in good_detection_box_data_arrays:
         current_crop.save(os.path.join('crop_results', detection_box_data_array.img_name.replace('.png', f'_{idx}.png')))
 
 # perform local quality check for each crop
-# ...
+good_crops_for_rotation = []
+for good_detection_box_data_array in good_detection_box_data_arrays:
+    for idx, good_detection_box_data in enumerate(good_detection_box_data_array.box_array):
+        image_path = os.path.join('crop_results', good_detection_box_data_array.img_name)
+        possible_crop_path = image_path.replace('.png', f'_{idx}.png')
+        print(f'Checking local rod {idx} quality for {image_path}... ', end='')
+
+
+        is_crop_good, reason_for_bad_crop = local_check_after_detection(possible_crop_path, good_detection_box_data)
+        if is_crop_good:
+            print('Passed!')
+            good_crops_for_rotation.append(possible_crop_path)
+        else:
+            print(f'Failed! Reason: {reason_for_bad_crop}')
 
 # make a folder for cropped_images
 try:
@@ -105,6 +118,6 @@ except FileExistsError:
 
 # rotate crops to make text horizontal
 rotate_to_horizontal(
-    os.listdir('crop_results'),
+    good_crops_for_rotation,
     os.path.join(ROTATION_FOLDER, 'text_detection_model.pth'),
 )
