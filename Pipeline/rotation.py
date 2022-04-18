@@ -16,9 +16,7 @@ def optimal_angle(mask, clusterization=False):
         proj = np.sin(angle)*x_proj + np.cos(angle)*y_proj
         return (proj**2).mean()-(proj.mean())**2
     
-    return mask
     indexes = np.nonzero(mask)
-    plt.show(indexes)
     
     if clusterization:
         indexes = np.array(indexes).T
@@ -87,6 +85,6 @@ def rotate_to_horizontal(file_names, model_path):
     for file_name in file_names:
         result_file_name = os.path.join('rotation_results', file_name)
         print(f'Rotating and saving crop to {result_file_name}...')
-
+        
         angle = optimal_angle(masks_by_file_name[file_name], clusterization=True)
         cv2.imwrite(result_file_name, imutils.rotate_bound(images_by_file_name[file_name], angle=angle))
