@@ -4,6 +4,7 @@ from PIL import Image
 
 from detection_box_array import DetectionBoxData, DetectionBoxDataArray
 from quality_metrics import global_check_before_detection, global_check_after_detection
+from rotation import rotate_to_horizontal
 
 
 arg_parser = argparse.ArgumentParser()
@@ -15,7 +16,7 @@ IMAGES_FOLDER = exec_args.source[0]
 YOLO_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'yolov5')
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rod_detection')
 DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Digit_detection')
-# ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
+ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
 
 images_files = [os.path.join(IMAGES_FOLDER, file_name) for file_name in os.listdir(IMAGES_FOLDER)]
 good_image_names = set()
@@ -92,4 +93,18 @@ for detection_box_data_array in good_detection_box_data_arrays:
         current_crop = current_image.crop((left, top, right, bottom))
         current_crop.save(os.path.join('crop_results', detection_box_data_array.img_name.replace('.png', f'_{idx}.png')))
 
-# perform global quality check...
+# perform local quality check for each crop
+# ...
+
+# make a folder for cropped_images
+try:
+    os.makedirs('rotation_results')
+    print('Folder "rotation_results" created, rotating rods...')
+except FileExistsError:
+    print('Folder "rotation_results" exists, rotating rods...')
+
+# rotate crops to make text horizontal
+rotate_to_horizontal(
+    os.listdir('crop_results'),
+    os.path.join(ROTATION_FOLDER, 'text_detection_model.pth'),
+)

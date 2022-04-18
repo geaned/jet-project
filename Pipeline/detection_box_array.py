@@ -1,3 +1,6 @@
+from typing import Tuple
+
+
 class DetectionBoxDataArray():
     def __init__(self, img_name, box_array):
         self.img_name = img_name
@@ -12,7 +15,7 @@ class DetectionBoxData():
         self.width = width
         self.height = height
     
-    def get_data(self):
+    def get_data(self) -> dict:
         return {
             'class_num': self.class_num,
             'bounding_box': {
@@ -23,11 +26,11 @@ class DetectionBoxData():
             },
         }
     
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.get_data())
 
-    def get_absolute_center(self, image_width, image_height):
+    def get_absolute_center(self, image_width, image_height) -> Tuple[int, int]:
         return (self.center_x * image_width, self.center_y * image_height)
 
-    def get_absolute_dimensions(self, image_width, image_height):
+    def get_absolute_dimensions(self, image_width, image_height) -> Tuple[int, int]:
         return (self.width * image_width, self.height * image_height)

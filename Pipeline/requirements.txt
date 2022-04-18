@@ -1,0 +1,3 @@
+segmentation-models-pytorch>=0.2.1
+imutils>=0.5.4
+opsdroid-get-image-size>=0.2.2

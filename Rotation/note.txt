@@ -1,0 +1,3 @@
+This folder is currently used to contain the text segmentation model used for crop rotation;
+if the model is not found here during the execution of the pipeline, it will be downloaded
+here automatically.

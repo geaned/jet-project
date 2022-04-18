@@ -6,6 +6,8 @@ import os
 import torch
 import segmentation_models_pytorch as smp
 
+import gdown
+
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
 
@@ -35,17 +37,27 @@ def optimal_angle(mask, clasterization=False):
         answer -= 180
     return answer
 
-def detect_text(imgs):
+def detect_text(images_by_filename, model_path):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    MODEL_PATH = './td_model/_ocr_model.pth'
-    model = torch.load(MODEL_PATH, map_location=torch.device(DEVICE))
-    
+
+    try:
+        model = torch.load(model_path, map_location=torch.device(DEVICE))
+        print('Found text segmentation weights!')
+    except FileNotFoundError:
+        print('Could not find text segmentation weights, downloading...')
+        gdown.download('https://drive.google.com/uc?id=1ziaSS_upk7VHgS6jE1QnN_USSIUzCZNK', model_path, quiet=False)
+        model = torch.load(model_path, map_location=torch.device(DEVICE))
+
     ENCODER = 'resnet34'
     ENCODER_WEIGHTS = 'imagenet'
     preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
     
-    masks = []
-    for img in imgs:
+    # get filenames and output progress
+    masks_by_file_name = {}
+    for file_name in images_by_filename:
+        file_path = os.path.join('crop_results', file_name)
+        print(f'Calculating text mask on {file_path}...')
+        img = images_by_filename[file_name]
         image = cv2.resize(preprocessing_fn(img), (640, 640))
         x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
         x_tensor = x_tensor.permute(0, 3, 1,2)
@@ -55,19 +67,23 @@ def detect_text(imgs):
         pr_mask = (pr_mask > 0.5).squeeze().cpu()
         pr_mask = np.array(pr_mask, dtype=float)
         pr_mask = cv2.resize(pr_mask, (img.shape[0], img.shape[1]))
-        masks.append(pr_mask)
-    return masks
+        masks_by_file_name[file_name] = pr_mask
+    return masks_by_file_name
 
-def rotate_to_horizontal(filenames):
-    images = []
-    for filename in filenames:
-        path = os.path.join('./crop_results', filename)
+def rotate_to_horizontal(file_names, model_path):
+    print('Parsing crops...')
+    images_by_file_name = {}
+    for file_name in file_names:
+        path = os.path.join('crop_results', file_name)
         image = cv2.imread(path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        images.append(image)
-    masks = detect_text(images)
+        images_by_file_name[file_name] = image
+
+    print('Looking for text masks on crops...')
+    masks_by_file_name = detect_text(images_by_file_name, model_path)
     
-    for i in range(len(images)):
-        angle = optimal_angle(masks[i], clasterization=True)
-        out_path = os.path.join('./rotation_results', filenames[i])
-        cv2.imwrite(out_path, imutils.rotate_bound(images[i], angle=angle))
+    print('Rotating and saving crops...')
+    for file_name in file_names:
+        angle = optimal_angle(masks_by_file_name[file_name], clasterization=True)
+        out_path = os.path.join('rotation_results', file_name)
+        cv2.imwrite(out_path, imutils.rotate_bound(images_by_file_name[file_name], angle=angle))
