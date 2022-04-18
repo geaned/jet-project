@@ -5,7 +5,6 @@ import numpy as np
 import os
 import torch
 import segmentation_models_pytorch as smp
-import albumentations as albu
 
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
@@ -36,7 +35,7 @@ def optimal_angle(mask, clasterization=False):
         answer -= 180
     return answer
 
-def detect_text(img):
+def detect_text(imgs):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     MODEL_PATH = './td_model/_ocr_model.pth'
     model = torch.load(MODEL_PATH, map_location=torch.device(DEVICE))
@@ -45,23 +44,32 @@ def detect_text(img):
     ENCODER_WEIGHTS = 'imagenet'
     preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
     
-    image = cv2.resize(preprocessing_fn(img), (640, 640))
-    x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
-    x_tensor = x_tensor.permute(0, 3, 1,2)
-    x_tensor = x_tensor.to(torch.float32)
+    masks = []
+    for img in imgs:
+        image = cv2.resize(preprocessing_fn(img), (640, 640))
+        x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
+        x_tensor = x_tensor.permute(0, 3, 1,2)
+        x_tensor = x_tensor.to(torch.float32)
 
-    pr_mask = model.predict(x_tensor)
-    pr_mask = (pr_mask > 0.5).squeeze().cpu()
-    pr_mask = np.array(pr_mask, dtype=float)
-    pr_mask = cv2.resize(pr_mask, (img.shape[0], img.shape[1]))
-    return pr_mask
+        pr_mask = model.predict(x_tensor)
+        pr_mask = (pr_mask > 0.5).squeeze().cpu()
+        pr_mask = np.array(pr_mask, dtype=float)
+        pr_mask = cv2.resize(pr_mask, (img.shape[0], img.shape[1]))
+        masks.append(pr_mask)
+    return masks
 
-def rotate_to_horizontal(filename):
-    path = os.path.join('./crop_results', filename)
-    image = cv2.imread(path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    mask = detect_text(image)
-    angle = optimal_angle(mask, clasterization=True)
+def rotate_to_horizontal(filenames):
+    images = []
+    for filename in filenames:
+        path = os.path.join('./crop_results', filename)
+        image = cv2.imread(path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        images.append(image)
+    masks = detect_text(images)
     
-    out_path = os.path.join('./rotation_results', filename)
-    cv2.imwrite(out_path, imutils.rotate_bound(image, angle=angle))
+    for i in range(len(images)):
+        angle = optimal_angle(masks[i], clasterization=True)
+        out_path = os.path.join('./rotation_results', filenames[i])
+        cv2.imwrite(out_path, imutils.rotate_bound(images[i], angle=angle))
+
+rotate_to_horizontal(['IMG_1748_ROD_901072579.png', 'IMG_1748_ROD_901073762.png'])
