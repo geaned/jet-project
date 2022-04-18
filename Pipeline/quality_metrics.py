@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import scipy.ndimage as snd
 
+from detection_box_array import DetectionBoxDataArray
 
 def sta6_optimized(gray_img: np.ndarray, conv_size: int = 5, stride: int = 1):
     image_intensity = gray_img / 255
@@ -26,6 +27,7 @@ def global_highlight(gray_img: np.ndarray) -> bool:
     """returns True, if image is too bright"""
     intensity = gray_img / 255
     mean_intensity = np.mean(intensity)
+
     return mean_intensity > 0.804
 
 def global_too_blurry(gray_img: np.ndarray) -> bool:
@@ -35,40 +37,42 @@ def global_too_blurry(gray_img: np.ndarray) -> bool:
 def global_check_before_detection(path_to_image):
     image = cv2.imread(path_to_image)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
     if global_highlight(gray):
         return False, 'Image is too bright'
     if global_too_blurry(gray):
         return False, 'Image is too blurry'
+
     return True, ''
 
-def weight_rod_pixels_sum(txt_file_path):
+def weight_rod_pixels_sum(detection_box_data_array):
     ans_sum = 0
-    with open(txt_file_path, 'r') as f:
-        for line in f.readlines():
-            arr = [float(s) for s in line.split()[1:]]
-            x_center, y_center, width, height = arr
-            dist = np.sqrt((x_center - 0.5) ** 2 + (y_center - 0.5) ** 2)
-            ans_sum += np.cos(dist) * width * height
+
+    for detection_box_data in detection_box_data_array.box_array:
+        bouding_box = detection_box_data.get_data()['bounding_box']
+        dist = np.sqrt((bouding_box['center_x'] - 0.5) ** 2 + (bouding_box['center_y'] - 0.5) ** 2)
+        ans_sum += np.cos(dist) * bouding_box['width'] * bouding_box['height']
+
     return ans_sum
 
-def global_rods_on_periphery(txt_file_path) -> bool:
+def global_rods_on_periphery(detection_box_data_array) -> bool:
     """returns True, if rods are on the image periphery"""
-    return weight_rod_pixels_sum(txt_file_path) < 0.094
+    return weight_rod_pixels_sum(detection_box_data_array) < 0.094
 
-def global_without_rods(txt_file_path) -> bool:
+def global_without_rods(detection_box_data_array) -> bool:
     """returns True, if our image has 0 rods"""
-    with open(txt_file_path, 'r') as f:
-        return len(f.readlines()) == 0
+    return len(detection_box_data_array.box_array) == 0
 
-def global_too_many_rods(txt_file_path) -> bool:
+def global_too_many_rods(detection_box_data_array) -> bool:
     """returns True, if our image has too many rods"""
-    with open(txt_file_path, 'r') as f:
-        return len(f.readlines()) >= 30
+    return len(detection_box_data_array.box_array) >= 30
 
-def global_check_after_detection(path_to_txt_file):
-    if global_without_rods(path_to_txt_file):
+def global_check_after_detection(detection_box_data_array):
+    if global_without_rods(detection_box_data_array):
         return False, 'Image has 0 rods'
-    if global_too_many_rods(path_to_txt_file):
+    if global_too_many_rods(detection_box_data_array):
         return False, 'Image has too many rods'
-    if global_rods_on_periphery(path_to_txt_file):
+    if global_rods_on_periphery(detection_box_data_array):
         return False, 'Rods are on the image periphery'
+    
+    return True, ''
