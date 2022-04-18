@@ -84,6 +84,6 @@ def rotate_to_horizontal(file_names, model_path):
     
     print('Rotating and saving crops...')
     for file_name in file_names:
-        angle = optimal_angle(masks_by_file_name[file_name], clasterization=True)
+        angle = optimal_angle(masks_by_file_name[file_name], clusterization=True)
         out_path = os.path.join('rotation_results', file_name)
         cv2.imwrite(out_path, imutils.rotate_bound(images_by_file_name[file_name], angle=angle))

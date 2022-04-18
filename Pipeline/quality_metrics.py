@@ -1,6 +1,8 @@
 import os
 import cv2
 
+from typing import Tuple
+
 import numpy as np
 import scipy.ndimage as snd
 
@@ -45,7 +47,7 @@ def global_check_before_detection(path_to_image):
 
     return True, ''
 
-def weight_rod_pixels_sum(detection_box_data_array):
+def weight_rod_pixels_sum(detection_box_data_array: DetectionBoxDataArray) -> int:
     ans_sum = 0
 
     for detection_box_data in detection_box_data_array.box_array:
@@ -55,19 +57,19 @@ def weight_rod_pixels_sum(detection_box_data_array):
 
     return ans_sum
 
-def global_rods_on_periphery(detection_box_data_array) -> bool:
+def global_rods_on_periphery(detection_box_data_array: DetectionBoxDataArray) -> bool:
     """returns True, if rods are on the image periphery"""
     return weight_rod_pixels_sum(detection_box_data_array) < 0.094
 
-def global_without_rods(detection_box_data_array) -> bool:
+def global_without_rods(detection_box_data_array: DetectionBoxDataArray) -> bool:
     """returns True, if our image has 0 rods"""
     return len(detection_box_data_array.box_array) == 0
 
-def global_too_many_rods(detection_box_data_array) -> bool:
+def global_too_many_rods(detection_box_data_array: DetectionBoxDataArray) -> bool:
     """returns True, if our image has too many rods"""
     return len(detection_box_data_array.box_array) >= 30
 
-def global_check_after_detection(detection_box_data_array):
+def global_check_after_detection(detection_box_data_array: DetectionBoxDataArray) -> Tuple[bool, str]:
     if global_without_rods(detection_box_data_array):
         return False, 'Image has 0 rods'
     if global_too_many_rods(detection_box_data_array):
