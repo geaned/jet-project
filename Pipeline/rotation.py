@@ -11,14 +11,14 @@ import gdown
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
 
-def optimal_angle(mask, clasterization=False):
+def optimal_angle(mask, clusterization=False):
     def dispersion(angle):
         proj = np.sin(angle)*x_proj + np.cos(angle)*y_proj
         return (proj**2).mean()-(proj.mean())**2
     
     indexes = np.nonzero(mask)
     
-    if clasterization:
+    if clusterization:
         indexes = np.array(indexes).T
         clustered = DBSCAN(eps=3, min_samples=2).fit(indexes)
         classes = np.array(clustered.labels_)
