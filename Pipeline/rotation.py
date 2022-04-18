@@ -83,7 +83,7 @@ def rotate_to_horizontal(file_paths, model_path):
     for file_path in file_paths:
         file_name = file_path.split('/')[-1]
         print(f'Rotating and saving crop to {file_path}... ', end='')
-        
+
         if masks_by_file_path[file_path].sum() == 0:
             print(f'Failed! Text area not found')
             continue
