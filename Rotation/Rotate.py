@@ -10,8 +10,6 @@ import albumentations as albu
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
 
-import Mask2Base64
-
 def optimal_angle(mask, clasterization=False):
     def dispersion(angle):
         proj = np.sin(angle)*x_proj + np.cos(angle)*y_proj
