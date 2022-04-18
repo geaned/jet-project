@@ -67,5 +67,3 @@ def rotate_to_horizontal(filename):
     
     out_path = os.path.join('./rotation_results', filename)
     cv2.imwrite(out_path, imutils.rotate_bound(image, angle=angle))
-
-rotate_to_horizontal('IMG_1748_ROD_901072579.png')
