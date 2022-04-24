@@ -18,8 +18,8 @@ random.seed(42)
 
 TEST_SIZE = 0.2
 
-DATA_TO_SPLIT = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'svhn_all')
-DATA_TO_POPULATE = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'datasets/svhn')
+DATA_TO_SPLIT = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'datasets_not_split/rotated_all')
+DATA_TO_POPULATE = os.path.join(os.path.dirname(os.path.realpath("__file__")), os.pardir, 'datasets/digit_data')
 
 # these two should be created in DATA_TO_POPULATE with 'train' and 'valid' subfolders
 IMG_FOLDER = 'images'

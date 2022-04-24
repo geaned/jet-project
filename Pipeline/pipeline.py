@@ -1,4 +1,5 @@
 import os
+import time
 import argparse
 from PIL import Image
 
@@ -17,6 +18,8 @@ YOLO_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'yolov5')
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rod_detection')
 DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Digit_detection')
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
+
+start_time = time.time()
 
 images_files = [os.path.join(IMAGES_FOLDER, file_name) for file_name in os.listdir(IMAGES_FOLDER)]
 good_image_names = set()
@@ -121,3 +124,6 @@ rotate_to_horizontal(
     good_crops_for_rotation,
     os.path.join(ROTATION_FOLDER, 'text_detection_model.pth'),
 )
+
+finish_time = time.time()
+print(f'The whole pipeline took {finish_time - start_time} seconds!')

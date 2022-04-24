@@ -1,5 +1,5 @@
 # Should be put into the root of the dataset directory
-path: ../datasets/svhn
+path: ../datasets/digit_data
 train: images/train
 val: images/valid
 
