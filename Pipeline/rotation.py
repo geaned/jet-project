@@ -16,6 +16,10 @@ def optimal_angle(mask, clusterization=False):
         proj = np.sin(angle)*x_proj + np.cos(angle)*y_proj
         return (proj**2).mean()-(proj.mean())**2
     
+    change_size = int(np.sqrt(mask.sum()/10000))
+    if change_size > 1:
+        mask = mask[::change_size,::change_size]
+    
     indexes = np.nonzero(mask)
     
     if clusterization:
