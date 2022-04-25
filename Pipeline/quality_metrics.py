@@ -34,24 +34,24 @@ def sta6_optimized(gray_img: np.ndarray, conv_size: int = 5, stride: int = 1):
 
     return sta6
 
-def global_highlight(gray_img: np.ndarray) -> bool:
+def global_highlight(gray_img: np.ndarray, lower_threshold: float) -> bool:
     """returns True, if image is too bright"""
     intensity = gray_img / 255
     mean_intensity = np.mean(intensity)
 
-    return mean_intensity > GLOBAL_HIGHLIGHT_LOWER_THRESHOLD
+    return mean_intensity > lower_threshold
 
-def global_too_blurry(gray_img: np.ndarray) -> bool:
+def global_too_blurry(gray_img: np.ndarray, upper_threshold: float) -> bool:
     """returns True, if image is too blurry"""
-    return sta6_optimized(gray_img) * 1e7 <= GLOBAL_BLUR_UPPER_THRESHOLD
+    return sta6_optimized(gray_img) * 1e7 <= upper_threshold
 
 def global_check_before_detection(path_to_image):
     image = cv2.imread(path_to_image)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    if global_highlight(gray):
+    if global_highlight(gray, GLOBAL_HIGHLIGHT_LOWER_THRESHOLD):
         return False, 'Image is too bright'
-    if global_too_blurry(gray):
+    if global_too_blurry(gray, GLOBAL_BLUR_UPPER_THRESHOLD):
         return False, 'Image is too blurry'
 
     return True, ''
@@ -66,63 +66,63 @@ def weight_rod_pixels_sum(detection_box_data_array: DetectionBoxDataArray) -> in
 
     return ans_sum
 
-def global_rods_on_periphery(detection_box_data_array: DetectionBoxDataArray) -> bool:
+def global_rods_on_periphery(detection_box_data_array: DetectionBoxDataArray, upper_threshold: float) -> bool:
     """returns True, if rods are on the image periphery"""
-    return weight_rod_pixels_sum(detection_box_data_array) < RODS_ON_PERIPHERY_UPPER_THRESHOLD
+    return weight_rod_pixels_sum(detection_box_data_array) < upper_threshold
 
 def global_without_rods(detection_box_data_array: DetectionBoxDataArray) -> bool:
     """returns True, if our image has 0 rods"""
     return len(detection_box_data_array.box_array) == 0
 
-def global_too_many_rods(detection_box_data_array: DetectionBoxDataArray) -> bool:
+def global_too_many_rods(detection_box_data_array: DetectionBoxDataArray, lower_threshold: float) -> bool:
     """returns True, if our image has too many rods"""
-    return len(detection_box_data_array.box_array) >= TOO_MANY_RODS_LOWER_THRESHOLD
+    return len(detection_box_data_array.box_array) >= lower_threshold
 
 def global_check_after_detection(detection_box_data_array: DetectionBoxDataArray) -> Tuple[bool, str]:
     if global_without_rods(detection_box_data_array):
         return False, 'Image has 0 rods'
-    if global_too_many_rods(detection_box_data_array):
+    if global_too_many_rods(detection_box_data_array, TOO_MANY_RODS_LOWER_THRESHOLD):
         return False, 'Image has too many rods'
-    if global_rods_on_periphery(detection_box_data_array):
+    if global_rods_on_periphery(detection_box_data_array, RODS_ON_PERIPHERY_UPPER_THRESHOLD):
         return False, 'Rods are on the image periphery'
     
     return True, ''
 
-def local_highlight(gray_img: np.ndarray) -> bool:
+def local_highlight(gray_img: np.ndarray, lower_threshold: float) -> bool:
     """returns True, if cropped image is too bright"""
     intensity = gray_img / 255
     mean_intensity = np.mean(intensity)
-    return mean_intensity > LOCAL_HIGHLIGHT_LOWER_THRESHOLD
+    return mean_intensity > lower_threshold
 
-def local_too_blurry(gray_img: np.ndarray) -> bool:
+def local_too_blurry(gray_img: np.ndarray, upper_threshold: float) -> bool:
     """returns True, if cropped image is too blurry"""
-    return sta6_optimized(gray_img) * 1e7 <= LOCAL_BLUR_UPPER_THRESHOLD
+    return sta6_optimized(gray_img) * 1e7 <= upper_threshold
 
-def local_rotated_too_much(gray_img: np.ndarray) -> bool:
+def local_rotated_too_much(gray_img: np.ndarray, upper_threshold: float) -> bool:
     """returns True, if rod image is rotated too much"""
     height, width = gray_img.shape
     size_ratio = min(height, width) / max(height, width)
-    return size_ratio < LOCAL_ROTATED_TOO_MUCH_UPPER_THRESHOLD
+    return size_ratio < upper_threshold
 
-def local_small_rod_square(height: float, width: float) -> bool:
+def local_small_rod_square(height: float, width: float, upper_threshold: float) -> bool:
     """
     Args: height and width are float from 0 to 1
     Returns: True if rod square is too small
     """
-    return height * width < SMALL_ROD_SQUARE_UPPER_THRESHOLD
+    return height * width < upper_threshold
 
 def local_check_after_detection(path_to_image, detection_box: DetectionBoxData) -> Tuple[bool, str]:
     image = cv2.imread(path_to_image)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     data = detection_box.get_data()['bounding_box']
     height, width = data['height'], data['width']
-    if local_highlight(gray):
+    if local_highlight(gray, LOCAL_HIGHLIGHT_LOWER_THRESHOLD):
         return False, 'Image is too bright'
-    if local_too_blurry(gray):
+    if local_too_blurry(gray, LOCAL_BLUR_UPPER_THRESHOLD):
         return False, 'Image is too blurry'
-    if local_rotated_too_much(gray):
+    if local_rotated_too_much(gray, LOCAL_ROTATED_TOO_MUCH_UPPER_THRESHOLD):
         return False, 'Crop area is too thin'
-    if local_small_rod_square(height, width):
+    if local_small_rod_square(height, width, SMALL_ROD_SQUARE_UPPER_THRESHOLD):
         return False, 'Crop square is too small'
 
     return True, ''
