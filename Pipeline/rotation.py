@@ -73,7 +73,7 @@ def detect_text(images_by_file_path, model_path):
         masks_by_file_path[file_path] = pr_mask
     return masks_by_file_path
 
-def rotate_to_horizontal(file_paths, model_path):
+def rotate_to_horizontal(file_paths, result_folder, model_path):
     print('Parsing crops...')
     images_by_file_path = {}
     for file_path in file_paths:
@@ -95,6 +95,6 @@ def rotate_to_horizontal(file_paths, model_path):
 
         angle = optimal_angle(masks_by_file_path[file_path], clusterization=True)
         cv2.imwrite(
-            os.path.join('rotation_results', file_name),
+            os.path.join(result_folder, file_name),
             imutils.rotate_bound(images_by_file_path[file_path], angle=angle),
         )
