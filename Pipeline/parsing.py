@@ -175,9 +175,10 @@ def filter_out_less_probable_data_arrays(source_folder: str, detection_box_data_
             continue
 
         flipped_image_name = image_name.replace('.png', '_flipped.png')
-        print(f'Choosing between {image_name} and {flipped_image_name}...', end='')
 
         if flipped_image_name in file_name_to_box_array:
+            print(f'Choosing between {image_name} and {flipped_image_name}... ', end='')
+
             # compare if both are present
             first_confidence_sum = sum(box_array.confidence for box_array in file_name_to_box_array[image_name])
             second_confidence_sum = sum(box_array.confidence for box_array in file_name_to_box_array[flipped_image_name])
