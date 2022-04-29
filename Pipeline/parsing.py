@@ -158,6 +158,49 @@ def remove_overlapping_bounding_boxes_by_iou(detection_box_data_arrays: List[Det
 
     return filtered_detection_box_data_arrays
 
+def filter_out_less_probable_data_arrays(source_folder: str, detection_box_data_arrays_with_confidence: List[DetectionBoxDataArray]):
+    file_name_to_box_array = {data_array.img_name: data_array.box_array for data_array in detection_box_data_arrays_with_confidence}
+
+    more_confident_box_arrays_file_names = set()
+    for image_name in file_name_to_box_array:
+        if image_name.endswith('_flipped.png'):
+            image_name_not_flipped = image_name.replace('_flipped.png', '.png')
+
+            if image_name_not_flipped not in file_name_to_box_array:
+                # flipped is present but original is not
+                more_confident_box_arrays_file_names.add(image_name)
+
+                os.remove(os.path.join(source_folder, image_name_not_flipped))
+
+            continue
+
+        flipped_image_name = image_name.replace('.png', '_flipped.png')
+        print(f'Choosing between {image_name} and {flipped_image_name}...', end='')
+
+        if flipped_image_name in file_name_to_box_array:
+            # compare if both are present
+            first_confidence_sum = sum(box_array.confidence for box_array in file_name_to_box_array[image_name])
+            second_confidence_sum = sum(box_array.confidence for box_array in file_name_to_box_array[flipped_image_name])
+            first_box_array_items_amount = len(file_name_to_box_array[image_name])
+            second_box_array_items_amount = len(file_name_to_box_array[flipped_image_name])
+            print(f'Culmulative confidence {first_confidence_sum:.2f} ({first_box_array_items_amount} digits) vs. {second_confidence_sum:.2f} ({second_box_array_items_amount} digits)')
+
+            current_more_confident_file_name = image_name if first_confidence_sum >= second_confidence_sum else flipped_image_name
+        else:
+            # original is present but flipped is not
+            current_more_confident_file_name = image_name
+
+        more_confident_box_arrays_file_names.add(current_more_confident_file_name)
+    
+    # remove less confident images
+    for found_image_name in os.listdir(source_folder):
+        if found_image_name not in more_confident_box_arrays_file_names:
+            print(f'Removing {found_image_name}...')
+            os.remove(os.path.join(source_folder, found_image_name))
+    
+    more_confident_box_arrays = [DetectionBoxDataArray(image_name, file_name_to_box_array[image_name]) for image_name in more_confident_box_arrays_file_names]
+    return more_confident_box_arrays
+
 def group_and_write_strings_to_text_files(filtered_rotated_crops_detection_box_data_arrays: List[DetectionBoxDataArray], result_folder: str):
     print('Writing results to label files...')
 

@@ -9,8 +9,10 @@ from parsing import create_folder_if_necessary
 from parsing import save_cropped_images
 from parsing import get_locally_good_crops_paths
 from parsing import remove_overlapping_bounding_boxes_by_iou
+from parsing import filter_out_less_probable_data_arrays
 from parsing import group_and_write_strings_to_text_files
 from rotation import rotate_to_horizontal
+from utils import download_if_file_not_present
 
 
 arg_parser = argparse.ArgumentParser()
@@ -36,10 +38,14 @@ start_time = time.time()
 images_file_paths = [os.path.join(IMAGES_FOLDER, file_name) for file_name in os.listdir(IMAGES_FOLDER)]
 preemptively_good_image_names = get_preemptively_globally_good_images_names(images_file_paths)
 
-# run detection
-os.system(f'python {os.path.join(YOLO_FOLDER, "detect.py")} --source {IMAGES_FOLDER} --img 1080 --weights {os.path.join(ROD_DETECTION_FOLDER, "rod_weights.pt")} --conf-thres 0.7 --save-txt')
+# download rod detection model if not present
+rod_detection_model_path = os.path.join(ROD_DETECTION_FOLDER, "rod_weights.pt")
+download_if_file_not_present('1UZQ1YW9Fap2ESzfMgYhUhC4SdTUZK3mw', rod_detection_model_path)
 
-# find and gather label files
+# run detection
+os.system(f'python {os.path.join(YOLO_FOLDER, "detect.py")} --source {IMAGES_FOLDER} --img 1080 --weights {rod_detection_model_path} --conf-thres 0.7 --save-txt')
+
+# find and gather rod label files from last detection
 rod_detection_results_label_paths = get_latest_detection_label_paths(detect_folder)
 
 # organize rod detection data into special classes
@@ -58,25 +64,33 @@ good_crops_for_rotation = get_locally_good_crops_paths(CROP_RESULT_FOLDER, actua
 create_folder_if_necessary(ROTATION_RESULT_FOLDER)
 
 # rotate crops to make text horizontal
-model_path = os.path.join(ROTATION_FOLDER, 'text_detection_model.pth')
+model_path = os.path.join(ROTATION_FOLDER, 'text_segmentation_model.pth')
 rotate_to_horizontal(good_crops_for_rotation, ROTATION_RESULT_FOLDER, model_path)
 
-# detect digits
-os.system(f'python {os.path.join(YOLO_FOLDER, "detect.py")} --source {ROTATION_RESULT_FOLDER} --img 640 --weights {os.path.join(DIGIT_DETECTION_FOLDER, "digit_weights.pt")} --save-txt --save-conf')
+# download digit detection model if not present
+digit_detection_model_path = os.path.join(DIGIT_DETECTION_FOLDER, "digit_weights.pt")
+download_if_file_not_present('1KTLSkFf8-VuwtPRArxLQINzUhKhY2Qle', digit_detection_model_path)
 
-# once again, gather labels and
-# organize rod detection data into special classes
+# detect digits
+os.system(f'python {os.path.join(YOLO_FOLDER, "detect.py")} --source {ROTATION_RESULT_FOLDER} --img 640 --weights {digit_detection_model_path} --save-txt --save-conf')
+
+# find and gather digit label files from last detection
 digit_detection_results_label_paths = get_latest_detection_label_paths(detect_folder)
+
+# organize digit detection data into special classes
 rotated_crops_detection_box_data_arrays = get_detection_box_data_for_filtered_images(digit_detection_results_label_paths, with_confidence=True)
 
 # resolve digit intersections
 filtered_rotated_crops_detection_box_data_arrays = remove_overlapping_bounding_boxes_by_iou(rotated_crops_detection_box_data_arrays)
 
+# filter out least possible rotation among each pair for a flipped and non-flipped image
+more_confident_detection_box_data_arrays = filter_out_less_probable_data_arrays(ROTATION_RESULT_FOLDER, filtered_rotated_crops_detection_box_data_arrays)
+
 # make a folder for rotated rods
 create_folder_if_necessary(STRING_RESULT_FOLDER)
 
 # merge found digits into string and output
-group_and_write_strings_to_text_files(filtered_rotated_crops_detection_box_data_arrays, STRING_RESULT_FOLDER)
+group_and_write_strings_to_text_files(more_confident_detection_box_data_arrays, STRING_RESULT_FOLDER)
 
 finish_time = time.time()
 print(f'The whole pipeline took {finish_time - start_time} seconds!')

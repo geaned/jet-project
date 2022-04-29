@@ -4,10 +4,49 @@ import numpy as np
 
 NEW_STRING_HEIGHT_DIFFERENCE_THRESHOLD = 0.8
 
+class DetectionBoxData():
+    def __init__(self, class_num: int, center_x: float, center_y: float, width: float, height: float, confidence: Optional[int] = None):
+        self.class_num = class_num
+        self.center_x = center_x
+        self.center_y = center_y
+        self.width = width
+        self.height = height
+        self.confidence = confidence
+    
+    def get_data(self) -> dict:
+        return {
+            'class_num': self.class_num,
+            'bounding_box': {
+                'center_x': self.center_x,
+                'center_y': self.center_y,
+                'width': self.width,
+                'height': self.height,
+                'confidence': self.confidence,
+            },
+        }
+    
+    def __str__(self) -> str:
+        return str(self.get_data())
+
+    def get_top_left_and_bottom_right(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        return (self.center_x - self.width / 2, self.center_y - self.height / 2), (self.center_x + self.width / 2, self.center_y + self.height / 2)
+
+    def get_relative_area(self) -> float:
+        return self.width * self.height
+
+    def get_absolute_center(self, image_width, image_height) -> Tuple[float, float]:
+        return (self.center_x * image_width, self.center_y * image_height)
+
+    def get_absolute_dimensions(self, image_width, image_height) -> Tuple[float, float]:
+        return (self.width * image_width, self.height * image_height)
+
 class DetectionBoxDataArray():
-    def __init__(self, img_name, box_array):
+    def __init__(self, img_name: str, box_array: List[DetectionBoxData]):
         self.img_name = img_name
         self.box_array = box_array
+
+    def __str__(self) -> str:
+        return f'{self.img_name}: {[detection_box.get_data() for detection_box in self.box_array]}'
 
     # may be rewritten with extra data
     def merge_digits_into_strings(self) -> List[str]:
@@ -37,39 +76,3 @@ class DetectionBoxDataArray():
             found_strings.append(new_found_string)
         
         return found_strings
-
-
-class DetectionBoxData():
-    def __init__(self, class_num, center_x, center_y, width, height, confidence: Optional[int] = None):
-        self.class_num = class_num
-        self.center_x = center_x
-        self.center_y = center_y
-        self.width = width
-        self.height = height
-        self.confidence = confidence
-    
-    def get_data(self) -> dict:
-        return {
-            'class_num': self.class_num,
-            'bounding_box': {
-                'center_x': self.center_x,
-                'center_y': self.center_y,
-                'width': self.width,
-                'height': self.height,
-            },
-        }
-    
-    def __str__(self) -> str:
-        return str(self.get_data())
-
-    def get_top_left_and_bottom_right(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
-        return (self.center_x - self.width / 2, self.center_y - self.height / 2), (self.center_x + self.width / 2, self.center_y + self.height / 2)
-
-    def get_relative_area(self) -> float:
-        return self.width * self.height
-
-    def get_absolute_center(self, image_width, image_height) -> Tuple[float, float]:
-        return (self.center_x * image_width, self.center_y * image_height)
-
-    def get_absolute_dimensions(self, image_width, image_height) -> Tuple[float, float]:
-        return (self.width * image_width, self.height * image_height)

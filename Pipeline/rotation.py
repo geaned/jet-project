@@ -6,17 +6,20 @@ import os
 import torch
 import segmentation_models_pytorch as smp
 
-import gdown
+from utils import download_if_file_not_present
 
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
 
+
+SCALING_DENOMINATOR = 10000
+
 def optimal_angle(mask, clusterization=False):
-    def dispersion(angle):
-        proj = np.sin(angle)*x_proj + np.cos(angle)*y_proj
-        return (proj**2).mean()-(proj.mean())**2
+    def mask_variance(angle):
+        proj = np.sin(angle) * x_proj + np.cos(angle) * y_proj
+        return (proj ** 2).mean() - (proj.mean()) ** 2
     
-    change_size = int(np.sqrt(mask.sum()/10000))
+    change_size = int(np.sqrt(mask.sum() / SCALING_DENOMINATOR))
     if change_size > 1:
         mask = mask[::change_size,::change_size]
     
@@ -27,30 +30,24 @@ def optimal_angle(mask, clusterization=False):
         clustered = DBSCAN(eps=3, min_samples=2).fit(indexes)
         classes = np.array(clustered.labels_)
         most_frequent_class = np.argmax(np.bincount(classes))
-        indexes = indexes[np.where(classes==most_frequent_class)]
+        indexes = indexes[np.where(classes == most_frequent_class)]
         indexes = indexes.T
         indexes = (list(indexes[0]), list(indexes[1]))
     
     x_proj = np.repeat([np.arange(mask.shape[1])], mask.shape[0], axis=0)[indexes]
     y_proj = np.repeat([np.arange(mask.shape[0])], mask.shape[1], axis=0).T[indexes]
-    answer = minimize(dispersion, x0=[1], bounds=[[-10,10]]).x[0]
-    answer = answer/np.pi*180
-    answer += 720
-    answer %= 180
-    if answer > 90:
-        answer -= 180
-    return answer
+    angle_in_radians = minimize(mask_variance, x0=[1], bounds=[[-10, 10]]).x[0]
+
+    # angle in range [-90, 90) degrees and another angle for flipped image
+    reduced_angle_in_degrees = (angle_in_radians / np.pi * 180 + 90) % 180 - 90
+    return reduced_angle_in_degrees, reduced_angle_in_degrees + 180
 
 def detect_text(images_by_file_path, model_path):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    try:
-        model = torch.load(model_path, map_location=torch.device(DEVICE))
-        print('Found text segmentation weights!')
-    except FileNotFoundError:
-        print('Could not find text segmentation weights, downloading...')
-        gdown.download('https://drive.google.com/uc?id=1ziaSS_upk7VHgS6jE1QnN_USSIUzCZNK', model_path, quiet=False)
-        model = torch.load(model_path, map_location=torch.device(DEVICE))
+    # download rotation model if not present
+    download_if_file_not_present('1ziaSS_upk7VHgS6jE1QnN_USSIUzCZNK', model_path)
+    model = torch.load(model_path, map_location=torch.device(DEVICE))
 
     ENCODER = 'resnet34'
     ENCODER_WEIGHTS = 'imagenet'
@@ -60,17 +57,20 @@ def detect_text(images_by_file_path, model_path):
     masks_by_file_path = {}
     for file_path in images_by_file_path:
         print(f'Evaluating text mask on {file_path}...')
-        img = images_by_file_path[file_path]
-        image = cv2.resize(preprocessing_fn(img), (640, 640))
-        x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
-        x_tensor = x_tensor.permute(0, 3, 1,2)
-        x_tensor = x_tensor.to(torch.float32)
+        image_shape = images_by_file_path[file_path].shape
+        image = cv2.resize(preprocessing_fn(images_by_file_path[file_path]), (640, 640))
+        
+        x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0).permute(0, 3, 1, 2).to(torch.float32)
+        pr_mask = (model.predict(x_tensor) > 0.5).squeeze().cpu()
 
-        pr_mask = model.predict(x_tensor)
-        pr_mask = (pr_mask > 0.5).squeeze().cpu()
-        pr_mask = np.array(pr_mask, dtype=float)
-        pr_mask = cv2.resize(pr_mask, (img.shape[0], img.shape[1]))
-        masks_by_file_path[file_path] = pr_mask
+        masks_by_file_path[file_path] = cv2.resize(
+            np.array(
+                pr_mask,
+                dtype=float,
+            ),
+            (image_shape[0], image_shape[1]),
+        )
+
     return masks_by_file_path
 
 def rotate_to_horizontal(file_paths, result_folder, model_path):
@@ -93,8 +93,13 @@ def rotate_to_horizontal(file_paths, result_folder, model_path):
             continue
         print()
 
-        angle = optimal_angle(masks_by_file_path[file_path], clusterization=True)
+        first_angle, second_angle = optimal_angle(masks_by_file_path[file_path], clusterization=True)
+        flipped_file_name = file_name.replace('.png', '_flipped.png')
         cv2.imwrite(
             os.path.join(result_folder, file_name),
-            imutils.rotate_bound(images_by_file_path[file_path], angle=angle),
+            imutils.rotate_bound(images_by_file_path[file_path], angle=first_angle),
+        )
+        cv2.imwrite(
+            os.path.join(result_folder, flipped_file_name),
+            imutils.rotate_bound(images_by_file_path[file_path], angle=second_angle),
         )
