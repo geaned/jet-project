@@ -11,6 +11,7 @@ from parsing import get_locally_good_crops_paths
 from parsing import remove_overlapping_bounding_boxes_by_iou
 from parsing import filter_out_less_probable_data_arrays
 from parsing import group_and_write_strings_to_text_files
+from output_info import make_base_dataframe_for_paths
 from rotation import rotate_to_horizontal
 from utils import download_if_file_not_present
 
@@ -20,23 +21,27 @@ arg_parser.add_argument('--source', nargs=1, required=True, help='Source folder 
 exec_args = arg_parser.parse_args()
 
 IMAGES_FOLDER = exec_args.source[0]
-# IMAGES_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'datasets_not_split/data_all/img')
 YOLO_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'yolov5')
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rod_detection')
 DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Digit_detection')
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
 
-CROP_RESULT_FOLDER = 'crop_results'
-ROTATION_RESULT_FOLDER = 'rotation_results'
-STRING_RESULT_FOLDER = 'found_strings'
+CROP_RESULT_FOLDER = 'crops'
+ROTATION_RESULT_FOLDER = 'results'
+STRING_RESULT_FOLDER = 'strings'
 
 detect_folder = os.path.join(YOLO_FOLDER, "runs/detect")
 
 start_time = time.time()
 
-# run global quality evaluation
+# find images
 images_file_paths = [os.path.join(IMAGES_FOLDER, file_name) for file_name in os.listdir(IMAGES_FOLDER)]
-preemptively_good_image_names = get_preemptively_globally_good_images_names(images_file_paths)
+
+# make dataframe for image quality
+image_quality_dataframe = make_base_dataframe_for_paths(images_file_paths)
+
+# run global quality evaluation
+preemptively_good_image_names = get_preemptively_globally_good_images_names(images_file_paths, logging_dataframe=image_quality_dataframe)
 
 # download rod detection model if not present
 rod_detection_model_path = os.path.join(ROD_DETECTION_FOLDER, "rod_weights.pt")
@@ -49,13 +54,14 @@ os.system(f'python {os.path.join(YOLO_FOLDER, "detect.py")} --source {IMAGES_FOL
 rod_detection_results_label_paths = get_latest_detection_label_paths(detect_folder)
 
 # organize rod detection data into special classes
-actually_good_detection_box_data_arrays = get_detection_box_data_for_filtered_images(rod_detection_results_label_paths, preemptively_good_image_names)
+actually_good_detection_box_data_arrays = get_detection_box_data_for_filtered_images(rod_detection_results_label_paths, preemptively_good_image_names, logging_dataframe=image_quality_dataframe)
 
 # make a folder for cropped images
 create_folder_if_necessary(CROP_RESULT_FOLDER)
 
-# save cropped images for gathered detection box data
+# save cropped images for gathered detection box data and quality dataframe
 save_cropped_images(IMAGES_FOLDER, CROP_RESULT_FOLDER, actually_good_detection_box_data_arrays)
+image_quality_dataframe.to_csv('image_quality.csv', index=False)
 
 # perform local quality check for each crop
 good_crops_for_rotation = get_locally_good_crops_paths(CROP_RESULT_FOLDER, actually_good_detection_box_data_arrays)

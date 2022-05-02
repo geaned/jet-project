@@ -1,8 +1,10 @@
 from typing import List, Set, Optional
 from PIL import Image
+import pandas as pd
 import os
 
 from detection_box_array import DetectionBoxData, DetectionBoxDataArray
+from output_info import set_negative_entry
 from quality_metrics import global_check_before_detection
 from quality_metrics import global_check_after_detection
 from quality_metrics import local_check_after_detection
@@ -17,16 +19,21 @@ def create_folder_if_necessary(folder_name: str):
     except FileExistsError:
         print(f'Folder "{folder_name}" exists, saving cropped rods...')
 
-def get_preemptively_globally_good_images_names(images_file_paths: List[str]) -> Set[str]:
+def get_preemptively_globally_good_images_names(images_file_paths: List[str], logging_dataframe: Optional[pd.DataFrame] = None) -> Set[str]:
     good_image_names = set()
 
     for file_path in images_file_paths:
         print(f'Checking image quality for {file_path}... ', end='')
         is_image_good, reason_for_bad = global_check_before_detection(file_path)
-        print(f'{"Passed!" if is_image_good else "Failed! Reason: "} {reason_for_bad}')
 
         if is_image_good:
-            good_image_names.add(file_path.split('/')[-1])
+            print('Passed!')
+            good_image_names.add(os.path.basename(file_path))
+        else:
+            print(f'Failed! Reason: {reason_for_bad}')
+            if logging_dataframe is not None:
+                file_name = os.path.basename(file_path)
+                set_negative_entry(logging_dataframe, file_name, reason_for_bad)
     
     return good_image_names
 
@@ -40,13 +47,11 @@ def get_latest_detection_label_paths(detect_folder: str) -> List[str]:
     print(f'Checking detection results folder {latest_detection_folder}...')
     return [os.path.join(latest_detection_folder, file_name) for file_name in os.listdir(latest_detection_folder)]
 
-def get_detection_box_data_for_filtered_images(results_label_paths: List[str], filter_image_names: Optional[Set[str]] = None, with_confidence: bool = False) -> List[DetectionBoxDataArray]:
+def get_detection_box_data_for_filtered_images(results_label_paths: List[str], filter_image_names: Optional[Set[str]] = None, with_confidence: bool = False, logging_dataframe: Optional[pd.DataFrame] = None) -> List[DetectionBoxDataArray]:
     good_detection_box_data_arrays = []
 
     for file_path in results_label_paths:
-        if filter_image_names is not None:
-            print(f'Checking detection results from {file_path}... ', end='')
-        current_image_name = file_path.split('/')[-1].replace('.txt', '.png')
+        current_image_name = os.path.basename(file_path).replace('.txt', '.png')
 
         # get detection data for images that passed tests before detection
         if filter_image_names is None or current_image_name in filter_image_names:
@@ -64,22 +69,26 @@ def get_detection_box_data_for_filtered_images(results_label_paths: List[str], f
                         current_detection_box_data_array.append(DetectionBoxData(class_num, center_x, center_y, width, height, confidence))
                     else:
                         current_detection_box_data_array.append(DetectionBoxData(class_num, center_x, center_y, width, height))
-                    
 
             current_data_array = DetectionBoxDataArray(current_image_name, current_detection_box_data_array)
-            is_image_good_after_detection, reason_for_bad_after_detection = global_check_after_detection(current_data_array)
 
+            # append straight away if we are not filtering
             if filter_image_names is None:
                 good_detection_box_data_arrays.append(current_data_array)
                 continue
 
-            # finally run global quality evaultion on after-detection features
+            # run global quality evaultion on after-detection features if there is a filter
+            print(f'Checking detection results from {file_path}... ', end='')
+            is_image_good_after_detection, reason_for_bad_after_detection = global_check_after_detection(current_data_array)
+
             if is_image_good_after_detection:
                 print('Passed!')
                 good_detection_box_data_arrays.append(current_data_array)
             else:
                 print(f'Failed! Reason: {reason_for_bad_after_detection}')
-    
+                if logging_dataframe is not None:
+                    set_negative_entry(logging_dataframe, current_image_name, reason_for_bad_after_detection)
+
     return good_detection_box_data_arrays
 
 def save_cropped_images(images_folder: str, result_folder: str, good_detection_box_data_arrays: List[DetectionBoxDataArray]):
