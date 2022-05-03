@@ -10,6 +10,7 @@ from parsing import save_cropped_images
 from parsing import get_locally_good_crops_paths
 from parsing import remove_overlapping_bounding_boxes_by_iou
 from parsing import filter_out_less_probable_data_arrays
+from parsing import rename_flipped_images
 from parsing import group_and_write_strings_to_text_files
 from output_info import make_base_dataframe_for_paths
 from output_info import write_dataframe_sorted_by_name
@@ -97,6 +98,9 @@ filtered_rotated_crops_detection_box_data_arrays = remove_overlapping_bounding_b
 # filter out least possible rotation among each pair for a flipped and non-flipped image
 more_confident_detection_box_data_arrays = filter_out_less_probable_data_arrays(ROTATION_RESULT_FOLDER, filtered_rotated_crops_detection_box_data_arrays, logging_dataframe=crop_quality_dataframe)
 
+# rename more confident files with names that end with 'flipped'
+rename_flipped_images(ROTATION_RESULT_FOLDER, more_confident_detection_box_data_arrays)
+
 # make a folder for rotated rods
 create_folder_if_necessary(STRING_RESULT_FOLDER)
 
@@ -111,4 +115,4 @@ get_full_stats_from_dataframe(image_quality_dataframe, type='image')
 print('-------------- CROPS QUALITY --------------')
 get_full_stats_from_dataframe(crop_quality_dataframe, type='crop')
 print('-------------------------------------------')
-print(f'The whole pipeline took {finish_time - start_time} seconds!')
+print(f'The whole pipeline took {finish_time - start_time:.2f} seconds!')

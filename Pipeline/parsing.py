@@ -219,11 +219,19 @@ def filter_out_less_probable_data_arrays(source_folder: str, detection_box_data_
     more_confident_box_arrays = [DetectionBoxDataArray(image_name, file_name_to_box_array[image_name]) for image_name in more_confident_box_arrays_file_names]
     return more_confident_box_arrays
 
-def group_and_write_strings_to_text_files(filtered_rotated_crops_detection_box_data_arrays: List[DetectionBoxDataArray], result_folder: str):
+def rename_flipped_images(folder: str, detection_box_data_arrays: List[DetectionBoxDataArray]):
+    for detection_box_data_array in detection_box_data_arrays:
+        if detection_box_data_array.img_name.endswith('_flipped.png'):
+            possible_path = os.path.join(folder, detection_box_data_array.img_name)
+
+            detection_box_data_array.img_name = detection_box_data_array.img_name.replace('_flipped.png', '.png')
+            os.rename(possible_path, possible_path.replace('_flipped.png', '.png'))
+
+def group_and_write_strings_to_text_files(detection_box_data_arrays: List[DetectionBoxDataArray], result_folder: str):
     print('Writing results to label files...')
 
-    for filtered_rotated_crops_detection_box_data_array in filtered_rotated_crops_detection_box_data_arrays:
-        label_name = os.path.join(result_folder, filtered_rotated_crops_detection_box_data_array.img_name.replace('.png', '.txt'))
+    for detection_box_data_array in detection_box_data_arrays:
+        label_name = os.path.join(result_folder, detection_box_data_array.img_name.replace('.png', '.txt'))
         with open(label_name, 'w') as text_results:
-            for found_string in filtered_rotated_crops_detection_box_data_array.merge_digits_into_strings():
+            for found_string in detection_box_data_array.merge_digits_into_strings():
                 text_results.write(found_string+'\n')
