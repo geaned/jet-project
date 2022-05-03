@@ -1,11 +1,15 @@
+import logging
+from typing import List, Optional
 import cv2
 import imutils
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import os
 import torch
 import segmentation_models_pytorch as smp
 
+from output_info import set_negative_entry
 from utils import download_if_file_not_present
 
 from scipy.optimize import minimize
@@ -73,7 +77,7 @@ def detect_text(images_by_file_path, model_path):
 
     return masks_by_file_path
 
-def rotate_to_horizontal(file_paths, result_folder, model_path):
+def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, logging_dataframe: Optional[pd.DataFrame] = None):
     print('Parsing crops...')
     images_by_file_path = {}
     for file_path in file_paths:
@@ -83,13 +87,18 @@ def rotate_to_horizontal(file_paths, result_folder, model_path):
 
     print('Looking for text masks on crops...')
     masks_by_file_path = detect_text(images_by_file_path, model_path)
-    
+
     for file_path in file_paths:
-        file_name = file_path.split('/')[-1]
+        file_name = os.path.basename(file_path)
         print(f'Rotating and saving crop to {file_path}... ', end='')
 
         if masks_by_file_path[file_path].sum() == 0:
-            print(f'Failed! Text area not found')
+            reason_for_removal = 'Text area not found'
+            print(f'Failed! {reason_for_removal}')
+
+            if logging_dataframe is not None:
+                set_negative_entry(logging_dataframe, file_name, reason_for_removal)
+    
             continue
         print()
 

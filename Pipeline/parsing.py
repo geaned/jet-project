@@ -107,7 +107,7 @@ def save_cropped_images(images_folder: str, result_folder: str, good_detection_b
             current_crop = current_image.crop((left, top, right, bottom))
             current_crop.save(os.path.join(result_folder, detection_box_data_array.img_name.replace('.png', f'_{idx}.png')))
 
-def get_locally_good_crops_paths(source_folder: str, good_detection_box_data_arrays: List[DetectionBoxDataArray]) -> List[str]:
+def get_locally_good_crops_paths(source_folder: str, good_detection_box_data_arrays: List[DetectionBoxDataArray], logging_dataframe: Optional[pd.DataFrame] = None) -> List[str]:
     good_crops_for_rotation = []
     for good_detection_box_data_array in good_detection_box_data_arrays:
         for idx, good_detection_box_data in enumerate(good_detection_box_data_array.box_array):
@@ -122,6 +122,9 @@ def get_locally_good_crops_paths(source_folder: str, good_detection_box_data_arr
                 good_crops_for_rotation.append(possible_crop_path)
             else:
                 print(f'Failed! Reason: {reason_for_bad_crop}')
+                if logging_dataframe is not None:
+                    possible_crop_name = os.path.basename(possible_crop_path)
+                    set_negative_entry(logging_dataframe, possible_crop_name, reason_for_bad_crop)
     
     return good_crops_for_rotation
 
@@ -167,7 +170,7 @@ def remove_overlapping_bounding_boxes_by_iou(detection_box_data_arrays: List[Det
 
     return filtered_detection_box_data_arrays
 
-def filter_out_less_probable_data_arrays(source_folder: str, detection_box_data_arrays_with_confidence: List[DetectionBoxDataArray]):
+def filter_out_less_probable_data_arrays(source_folder: str, detection_box_data_arrays_with_confidence: List[DetectionBoxDataArray], logging_dataframe: Optional[pd.DataFrame] = None):
     file_name_to_box_array = {data_array.img_name: data_array.box_array for data_array in detection_box_data_arrays_with_confidence}
 
     more_confident_box_arrays_file_names = set()
@@ -207,6 +210,11 @@ def filter_out_less_probable_data_arrays(source_folder: str, detection_box_data_
         if found_image_name not in more_confident_box_arrays_file_names:
             print(f'Removing {found_image_name}...')
             os.remove(os.path.join(source_folder, found_image_name))
+
+            # separate BAD reason in case we could not find digits not neither flipped nor non-flipped image
+            if logging_dataframe is not None:
+                if not found_image_name.endswith('_flipped.png') and found_image_name.replace('.png', '_flipped.png') not in more_confident_box_arrays_file_names:
+                    set_negative_entry(logging_dataframe, found_image_name, 'Digits not found')
     
     more_confident_box_arrays = [DetectionBoxDataArray(image_name, file_name_to_box_array[image_name]) for image_name in more_confident_box_arrays_file_names]
     return more_confident_box_arrays

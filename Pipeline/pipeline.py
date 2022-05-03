@@ -12,6 +12,8 @@ from parsing import remove_overlapping_bounding_boxes_by_iou
 from parsing import filter_out_less_probable_data_arrays
 from parsing import group_and_write_strings_to_text_files
 from output_info import make_base_dataframe_for_paths
+from output_info import write_dataframe_sorted_by_name
+from output_info import get_full_stats_from_dataframe
 from rotation import rotate_to_horizontal
 from utils import download_if_file_not_present
 
@@ -61,17 +63,20 @@ create_folder_if_necessary(CROP_RESULT_FOLDER)
 
 # save cropped images for gathered detection box data and quality dataframe
 save_cropped_images(IMAGES_FOLDER, CROP_RESULT_FOLDER, actually_good_detection_box_data_arrays)
-image_quality_dataframe.to_csv('image_quality.csv', index=False)
+write_dataframe_sorted_by_name(image_quality_dataframe, 'image_quality.csv')
+
+# make dataframe for crop quality
+crop_quality_dataframe = make_base_dataframe_for_paths([os.path.join(CROP_RESULT_FOLDER, file_name) for file_name in os.listdir(CROP_RESULT_FOLDER)])
 
 # perform local quality check for each crop
-good_crops_for_rotation = get_locally_good_crops_paths(CROP_RESULT_FOLDER, actually_good_detection_box_data_arrays)
+good_crops_for_rotation = get_locally_good_crops_paths(CROP_RESULT_FOLDER, actually_good_detection_box_data_arrays, logging_dataframe=crop_quality_dataframe)
 
 # make a folder for rotated rods
 create_folder_if_necessary(ROTATION_RESULT_FOLDER)
 
 # rotate crops to make text horizontal
 model_path = os.path.join(ROTATION_FOLDER, 'text_segmentation_model.pth')
-rotate_to_horizontal(good_crops_for_rotation, ROTATION_RESULT_FOLDER, model_path)
+rotate_to_horizontal(good_crops_for_rotation, ROTATION_RESULT_FOLDER, model_path, logging_dataframe=crop_quality_dataframe)
 
 # download digit detection model if not present
 digit_detection_model_path = os.path.join(DIGIT_DETECTION_FOLDER, "digit_weights.pt")
@@ -90,13 +95,20 @@ rotated_crops_detection_box_data_arrays = get_detection_box_data_for_filtered_im
 filtered_rotated_crops_detection_box_data_arrays = remove_overlapping_bounding_boxes_by_iou(rotated_crops_detection_box_data_arrays)
 
 # filter out least possible rotation among each pair for a flipped and non-flipped image
-more_confident_detection_box_data_arrays = filter_out_less_probable_data_arrays(ROTATION_RESULT_FOLDER, filtered_rotated_crops_detection_box_data_arrays)
+more_confident_detection_box_data_arrays = filter_out_less_probable_data_arrays(ROTATION_RESULT_FOLDER, filtered_rotated_crops_detection_box_data_arrays, logging_dataframe=crop_quality_dataframe)
 
 # make a folder for rotated rods
 create_folder_if_necessary(STRING_RESULT_FOLDER)
 
-# merge found digits into string and output
+# merge found digits into string and output and save crop quality dataframe
 group_and_write_strings_to_text_files(more_confident_detection_box_data_arrays, STRING_RESULT_FOLDER)
+write_dataframe_sorted_by_name(crop_quality_dataframe, 'crop_quality.csv')
 
 finish_time = time.time()
+
+print('-------------- IMAGE QUALITY --------------')
+get_full_stats_from_dataframe(image_quality_dataframe)
+print('-------------- CROPS QUALITY --------------')
+get_full_stats_from_dataframe(crop_quality_dataframe)
+print('-------------------------------------------')
 print(f'The whole pipeline took {finish_time - start_time} seconds!')
