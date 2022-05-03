@@ -8,6 +8,25 @@ COLUMN_TO_NUMBER = {
     'Verdict': 2
 }
 
+IMAGE_REASON_ORDER = [
+    'OK',
+    'Image is too bright',
+    'Image is too blurry',
+    'Image has no rods',
+    'Image has too many rods',
+    'The rods are on the image periphery',
+]
+
+CROP_REASON_ORDER = [
+    'OK',
+    'Crop image is too bright',
+    'Crop image is too blurry',
+    'Crop area is too thin',
+    'Crop square is too small',
+    'Text area not found',
+    'Digits not found',
+]
+
 def make_base_dataframe_for_paths(paths: List[str]) -> pd.DataFrame:
     dataframe_keys = list(COLUMN_TO_NUMBER.keys())
 
@@ -31,12 +50,14 @@ def set_negative_entry(df: pd.DataFrame, name: str, reason: str):
 def write_dataframe_sorted_by_name(df: pd.DataFrame, file_path: str):
     df.sort_values(by=['Name']).to_csv(file_path, index=False)
 
-def get_full_stats_from_dataframe(df: pd.DataFrame):
-    print(f'{"Total":<26}{len(df.index):>5}')
-    
-    verdict_counts = []
-    for verdict in df['Verdict'].unique():
-        verdict_counts.append((verdict, len(df[df['Verdict'] == verdict])))
-    
-    for verdict, count in sorted(verdict_counts, key=lambda vc: vc[1], reverse=True):
-        print(f'{verdict:<26}{count:>5}')
+def get_full_stats_from_dataframe(df: pd.DataFrame, type: str):
+    if type == 'image':
+        verdict_order = IMAGE_REASON_ORDER
+    elif type == 'crop':
+        verdict_order = CROP_REASON_ORDER
+    else:
+        return
+
+    print(f'{"Total":<38}{len(df.index):>5}')
+    for verdict in verdict_order:
+        print(f'{verdict:<38}{len(df[df["Verdict"] == verdict]):>5}')
