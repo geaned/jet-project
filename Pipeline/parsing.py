@@ -15,23 +15,25 @@ from quality_metrics import local_check_after_detection
 
 IOU_THRESHOLD = 0.3
 
-def get_preemptively_globally_good_images_names(images_file_paths: List[str], logging_dataframe: Optional[pd.DataFrame] = None) -> Set[str]:
-    good_image_paths = set()
+def get_preemptively_globally_good_images(images_file_paths: List[str], image_tensors: torch.Tensor, logging_dataframe: Optional[pd.DataFrame] = None) -> Set[str]:
+    good_image_paths = []
+    good_image_tensors = []
 
-    for file_path in images_file_paths:
+    for file_path, image_tensor in zip(images_file_paths, image_tensors):
         file_name = os.path.basename(file_path)
         print(f'Checking image quality for {file_name}... ', end='')
-        is_image_good, reason_for_bad = global_check_before_detection(file_path)
+        is_image_good, reason_for_bad = global_check_before_detection(image_tensor)
 
         if is_image_good:
             print('Passed!')
-            good_image_paths.add(file_path)
+            good_image_paths.append(file_path)
+            good_image_tensors.append(image_tensor)
         else:
             print(f'Failed! Reason: {reason_for_bad}')
             if logging_dataframe is not None:
                 set_negative_entry(logging_dataframe, file_name, reason_for_bad)
     
-    return good_image_paths
+    return good_image_paths, good_image_tensors
 
 def get_latest_detection_label_paths(detect_folder: str) -> List[str]:
     latest_exp = max(

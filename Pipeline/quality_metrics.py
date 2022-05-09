@@ -1,10 +1,8 @@
+from typing import Tuple
+import numpy as np
 import os
 import cv2
 import torch
-
-from typing import Tuple
-
-import numpy as np
 import scipy.ndimage as snd
 
 from detection_box_array import DetectionBoxDataArray, DetectionBoxData
@@ -18,7 +16,7 @@ LOCAL_BLUR_UPPER_THRESHOLD = 510.477
 LOCAL_ROTATED_TOO_MUCH_UPPER_THRESHOLD = 0.777
 SMALL_ROD_SQUARE_UPPER_THRESHOLD = 0.0058
 
-def sta6_optimized(gray_img: np.ndarray, conv_size: int = 5, stride: int = 1):
+def sta6_optimized(gray_img: torch.Tensor, conv_size: int = 5, stride: int = 1):
     image_intensity = gray_img / 255
 
     mean_kernel = np.ones((conv_size, conv_size)) / conv_size ** 2
@@ -35,24 +33,23 @@ def sta6_optimized(gray_img: np.ndarray, conv_size: int = 5, stride: int = 1):
 
     return sta6
 
-def global_highlight(gray_img: np.ndarray, lower_threshold: float) -> bool:
+def global_highlight(gray_img: torch.Tensor, lower_threshold: float) -> bool:
     """returns True, if image is too bright"""
     intensity = gray_img / 255
     mean_intensity = np.mean(intensity)
 
     return mean_intensity > lower_threshold
 
-def global_too_blurry(gray_img: np.ndarray, upper_threshold: float) -> bool:
+def global_too_blurry(gray_img: torch.Tensor, upper_threshold: float) -> bool:
     """returns True, if image is too blurry"""
     return sta6_optimized(gray_img) * 1e7 <= upper_threshold
 
-def global_check_before_detection(path_to_image):
-    image = cv2.imread(path_to_image)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+def global_check_before_detection(image_tensor: torch.Tensor):
+    gray_tensor = cv2.cvtColor(image_tensor, cv2.COLOR_BGR2GRAY)
 
-    if global_highlight(gray, GLOBAL_HIGHLIGHT_LOWER_THRESHOLD):
+    if global_highlight(gray_tensor, GLOBAL_HIGHLIGHT_LOWER_THRESHOLD):
         return False, 'Image is too bright'
-    if global_too_blurry(gray, GLOBAL_BLUR_UPPER_THRESHOLD):
+    if global_too_blurry(gray_tensor, GLOBAL_BLUR_UPPER_THRESHOLD):
         return False, 'Image is too blurry'
 
     return True, ''
@@ -94,10 +91,6 @@ def global_check_after_detection(detection_box_data_array: DetectionBoxDataArray
         return False, 'The rods are on the image periphery'
     
     return True, ''
-
-
-# CONTINUE FROM HERE
-
 
 def local_highlight(gray_img: np.ndarray, lower_threshold: float) -> bool:
     """returns True, if cropped image is too bright"""

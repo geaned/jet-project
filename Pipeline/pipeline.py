@@ -5,7 +5,7 @@ import time
 import torch
 import argparse
 
-from parsing import get_preemptively_globally_good_images_names
+from parsing import get_preemptively_globally_good_images
 from parsing import organize_and_filter_detection_results
 from parsing import save_cropped_images
 from parsing import get_crop_image_names_from_array
@@ -46,13 +46,16 @@ start_time = time.time()
 
 # find images
 images_file_paths = [os.path.join(IMAGES_FOLDER, file_name) for file_name in os.listdir(IMAGES_FOLDER)]
+images = [cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB) for image_path in images_file_paths]
 
 # make dataframe for image quality
 image_quality_dataframe = make_base_dataframe_for_paths(images_file_paths)
 
 # run global quality evaluation
-preemptively_good_image_paths = get_preemptively_globally_good_images_names(images_file_paths, logging_dataframe=image_quality_dataframe)
-preemptively_good_images = [cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB) for image_path in preemptively_good_image_paths]
+preemptively_good_image_paths, preemptively_good_images = get_preemptively_globally_good_images(images_file_paths, images, logging_dataframe=image_quality_dataframe)
+
+del images
+gc.collect()
 
 # download rod detection model if not present
 rod_detection_model_path = os.path.join(ROD_DETECTION_FOLDER, "rod_weights.pt")
