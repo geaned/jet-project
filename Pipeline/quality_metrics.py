@@ -1,5 +1,6 @@
 import os
 import cv2
+import torch
 
 from typing import Tuple
 
@@ -59,10 +60,16 @@ def global_check_before_detection(path_to_image):
 def weight_rod_pixels_sum(detection_box_data_array: DetectionBoxDataArray) -> int:
     ans_sum = 0
 
+    image_width, image_height = detection_box_data_array.get_image_dimensions()
     for detection_box_data in detection_box_data_array.box_array:
-        bouding_box = detection_box_data.get_data()['bounding_box']
-        dist = np.sqrt((bouding_box['center_x'] - 0.5) ** 2 + (bouding_box['center_y'] - 0.5) ** 2)
-        ans_sum += np.cos(dist) * bouding_box['width'] * bouding_box['height']
+        center_x, center_y = detection_box_data.get_center()
+        box_width, box_height = detection_box_data.get_absolute_dimensions()
+
+        relative_x_offset = abs((center_x - image_width / 2) / image_width)
+        relative_y_offset = abs((center_y - image_height / 2) / image_height)
+
+        dist = np.sqrt(relative_x_offset ** 2 + relative_y_offset ** 2)
+        ans_sum += np.cos(dist) * (box_width / image_width) * (box_height / image_height)
 
     return ans_sum
 
@@ -88,6 +95,10 @@ def global_check_after_detection(detection_box_data_array: DetectionBoxDataArray
     
     return True, ''
 
+
+# CONTINUE FROM HERE
+
+
 def local_highlight(gray_img: np.ndarray, lower_threshold: float) -> bool:
     """returns True, if cropped image is too bright"""
     intensity = gray_img / 255
@@ -98,31 +109,32 @@ def local_too_blurry(gray_img: np.ndarray, upper_threshold: float) -> bool:
     """returns True, if cropped image is too blurry"""
     return sta6_optimized(gray_img) * 1e7 <= upper_threshold
 
-def local_rotated_too_much(gray_img: np.ndarray, upper_threshold: float) -> bool:
+def local_rotated_too_much(width: int, height: int, upper_threshold: float) -> bool:
     """returns True, if rod image is rotated too much"""
-    height, width = gray_img.shape
-    size_ratio = min(height, width) / max(height, width)
+    size_ratio = min(width, height) / max(width, height)
     return size_ratio < upper_threshold
 
-def local_small_rod_square(height: float, width: float, upper_threshold: float) -> bool:
+def local_small_rod_square(relative_width: float, relative_height: float, upper_threshold: float) -> bool:
     """
     Args: height and width are float from 0 to 1
     Returns: True if rod square is too small
     """
-    return height * width < upper_threshold
+    return relative_width * relative_height < upper_threshold
 
-def local_check_after_detection(path_to_image, detection_box: DetectionBoxData) -> Tuple[bool, str]:
-    image = cv2.imread(path_to_image)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    data = detection_box.get_data()['bounding_box']
-    height, width = data['height'], data['width']
-    if local_highlight(gray, LOCAL_HIGHLIGHT_LOWER_THRESHOLD):
+def local_check_after_detection(detection_box: DetectionBoxData, width: float, height: float) -> Tuple[bool, str]:
+    gray_tensor = cv2.cvtColor(detection_box.img_tensor, cv2.COLOR_RGB2GRAY)
+    box_width, box_height = detection_box.get_absolute_dimensions()
+
+    if local_highlight(gray_tensor, LOCAL_HIGHLIGHT_LOWER_THRESHOLD):
         return False, 'Crop image is too bright'
-    if local_too_blurry(gray, LOCAL_BLUR_UPPER_THRESHOLD):
+
+    if local_too_blurry(gray_tensor, LOCAL_BLUR_UPPER_THRESHOLD):
         return False, 'Crop image is too blurry'
-    if local_rotated_too_much(gray, LOCAL_ROTATED_TOO_MUCH_UPPER_THRESHOLD):
+
+    if local_rotated_too_much(box_width, box_height, LOCAL_ROTATED_TOO_MUCH_UPPER_THRESHOLD):
         return False, 'Crop area is too thin'
-    if local_small_rod_square(height, width, SMALL_ROD_SQUARE_UPPER_THRESHOLD):
+
+    if local_small_rod_square(box_width / width, box_height / height, SMALL_ROD_SQUARE_UPPER_THRESHOLD):
         return False, 'Crop square is too small'
 
     return True, ''

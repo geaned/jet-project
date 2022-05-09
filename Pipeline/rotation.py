@@ -1,4 +1,3 @@
-import logging
 from typing import List, Optional
 import cv2
 import imutils
@@ -8,9 +7,11 @@ import pandas as pd
 import os
 import torch
 import segmentation_models_pytorch as smp
+from detection_box_array import BasicCropData, DetectionBoxDataArray
 
 from output_info import set_negative_entry
-from utils import download_if_file_not_present
+from pipeline_utils import create_folder_if_necessary
+from pipeline_utils import download_if_file_not_present
 
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
@@ -44,9 +45,9 @@ def optimal_angle(mask, clusterization=False):
 
     # angle in range [-90, 90) degrees and another angle for flipped image
     reduced_angle_in_degrees = (angle_in_radians / np.pi * 180 + 90) % 180 - 90
-    return reduced_angle_in_degrees, reduced_angle_in_degrees + 180
+    return reduced_angle_in_degrees
 
-def detect_text(images_by_file_path, model_path):
+def detect_text(detection_box_data_arrays: List[DetectionBoxDataArray], model_path: str):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     # download rotation model if not present
@@ -57,58 +58,63 @@ def detect_text(images_by_file_path, model_path):
     ENCODER_WEIGHTS = 'imagenet'
     preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
     
-    # get filenames and output progress
-    masks_by_file_path = {}
-    for file_path in images_by_file_path:
-        print(f'Evaluating text mask on {file_path}...')
-        image_shape = images_by_file_path[file_path].shape
-        image = cv2.resize(preprocessing_fn(images_by_file_path[file_path]), (640, 640))
+    # get text mask for every image tensor
+    masks_found = []
+    for detection_box_data_array in detection_box_data_arrays:
+        cur_masks_array = []
+
+        for idx, detection_box_data in enumerate(detection_box_data_array.box_array):
+            print(f'Evaluating text mask on {detection_box_data_array.get_file_name_for_data_box(idx)}...')
+            image_dims = detection_box_data.get_absolute_dimensions()
+            image = cv2.resize(preprocessing_fn(detection_box_data.img_tensor), (640, 640))
+            
+            x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0).permute(0, 3, 1, 2).to(torch.float32)
+            pr_mask = (model.predict(x_tensor) > 0.5).squeeze().cpu()
+
+            parsed_mask = cv2.resize(
+                np.array(
+                    pr_mask,
+                    dtype=float,
+                ),
+                (int(image_dims[0]), int(image_dims[1])),
+            )
+            cur_masks_array.append(parsed_mask)
         
-        x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0).permute(0, 3, 1, 2).to(torch.float32)
-        pr_mask = (model.predict(x_tensor) > 0.5).squeeze().cpu()
+        masks_found.append(cur_masks_array)
 
-        masks_by_file_path[file_path] = cv2.resize(
-            np.array(
-                pr_mask,
-                dtype=float,
-            ),
-            (image_shape[0], image_shape[1]),
-        )
+    return masks_found
 
-    return masks_by_file_path
-
-def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, logging_dataframe: Optional[pd.DataFrame] = None):
-    print('Parsing crops...')
-    images_by_file_path = {}
-    for file_path in file_paths:
-        image = cv2.imread(file_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        images_by_file_path[file_path] = image
-
+def rotate_to_horizontal(detection_box_data_arrays: List[DetectionBoxDataArray], model_path, save_rotations: bool = False, logging_dataframe: Optional[pd.DataFrame] = None) -> List[BasicCropData]:
     print('Looking for text masks on crops...')
-    masks_by_file_path = detect_text(images_by_file_path, model_path)
+    masks_for_arrays = detect_text(detection_box_data_arrays, model_path)
 
-    for file_path in file_paths:
-        file_name = os.path.basename(file_path)
-        print(f'Rotating and saving crop to {file_path}... ', end='')
+    rotated_crops_with_data = []
+    for detection_box_data_array, masks_for_array in zip(detection_box_data_arrays, masks_for_arrays):
+        good_indices = []
+        opt_angles = []
 
-        if masks_by_file_path[file_path].sum() == 0:
-            reason_for_removal = 'Text area not found'
-            print(f'Failed! {reason_for_removal}')
+        for idx, (detection_box_data, mask) in enumerate(zip(detection_box_data_array.box_array, masks_for_array)):
+            crop_name = detection_box_data_array.get_file_name_for_data_box(idx)
 
-            if logging_dataframe is not None:
-                set_negative_entry(logging_dataframe, file_name, reason_for_removal)
+            print(f'Checking crop {crop_name}... ', end='')
+            if mask.sum() == 0:
+                reason_for_removal = 'Text area not found'
+                print(f'Failed! {reason_for_removal}')
+
+                if logging_dataframe is not None:
+                    set_negative_entry(logging_dataframe, crop_name, reason_for_removal)
+                
+                continue
+            print()
+            good_indices.append(idx)
+
+            opt_angle = optimal_angle(mask, clusterization=True)
+            opt_angles.append(opt_angle)
+
+        detection_box_data_array.box_array = [detection_box_data_array.box_array[idx] for idx in good_indices]
+
+        for idx, detection_box_data in enumerate(detection_box_data_array.box_array):
+            rotated_crop = imutils.rotate_bound(detection_box_data.img_tensor, angle=opt_angles[idx])
+            rotated_crops_with_data.append(BasicCropData(detection_box_data.index, detection_box_data_array.img_name, rotated_crop))
     
-            continue
-        print()
-
-        first_angle, second_angle = optimal_angle(masks_by_file_path[file_path], clusterization=True)
-        flipped_file_name = file_name.replace('.png', '_flipped.png')
-        cv2.imwrite(
-            os.path.join(result_folder, file_name),
-            imutils.rotate_bound(images_by_file_path[file_path], angle=first_angle),
-        )
-        cv2.imwrite(
-            os.path.join(result_folder, flipped_file_name),
-            imutils.rotate_bound(images_by_file_path[file_path], angle=second_angle),
-        )
+    return rotated_crops_with_data
