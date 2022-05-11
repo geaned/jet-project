@@ -1,5 +1,6 @@
 import streamlit as st
 from PIL import Image, ImageDraw
+import torchvision.transforms as tt
 import os
 import sys
 import cv2
@@ -23,6 +24,14 @@ from Pipeline.rotation import rotate_to_horizontal
 def show_rod_detection_results(rod_detection_df):
     st.header('Rod detection results')
     st.dataframe(rod_detection_df.pandas().xyxy[0].drop(columns=['class', 'name']).rename(columns={'xmin': 'Left', 'ymin': 'Top', 'xmax': 'Right', 'ymax': 'Bottom', 'confidence': 'Confidence'}))
+    rod_image = tt.ToPILImage()(cv2.cvtColor(image_tensor, cv2.COLOR_BGR2RGB))
+    canvas_rod_image = ImageDraw.Draw(rod_image)
+
+    for crop in rod_detection_df.xyxy[0]:
+        left, top, right, bottom, _, _ = crop
+        canvas_rod_image.rectangle([(left, top), (right, bottom)], outline='red', width=10)
+
+    st.image(rod_image)
 
 def show_quality_verdict(quality_df):
     st.header('Quality verdict')
@@ -54,6 +63,10 @@ st.image(image)
 image_tensor = cv2.imread(chosen_image_path)[top:bottom, left:right]
 
 if st.sidebar.button('Run the pipeline'):
+    if image_tensor.size == 0:
+        st.error('Crop with zero area selected')
+        st.stop()
+
     with st.spinner('Processing...'):
         is_preemptively_good, reason_for_preemptively_bad = global_check_before_detection(image_tensor)
         if not is_preemptively_good:
