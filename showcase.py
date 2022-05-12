@@ -67,7 +67,7 @@ if st.sidebar.button('Run the pipeline'):
         st.error('Crop with zero area selected')
         st.stop()
 
-    with st.spinner('Processing...'):
+    with st.spinner('Detecting rods...'):
         is_preemptively_good, reason_for_preemptively_bad = global_check_before_detection(image_tensor)
         if not is_preemptively_good:
             st.error(f'Image did not pass preemptive global quality evaluation! Reason: {reason_for_preemptively_bad}')
@@ -101,20 +101,22 @@ if st.sidebar.button('Run the pipeline'):
         good_for_rotation_crops_arrays = leave_only_good_crops(actually_good_detection_box_data_arrays, logging_dataframe=crop_quality_dataframe)
 
         if len(good_for_rotation_crops_arrays[0].box_array) == 0:
-            st.error(f'None of the rods passed local quality evaluation!')
+            st.error('None of the rods passed local quality evaluation!')
             show_rod_detection_results(rod_detection_results)
             show_quality_verdict(crop_quality_dataframe)
             st.stop()
 
+    with st.spinner('Rotating rods...'):
         model_path = os.path.join(ROTATION_FOLDER, 'text_segmentation_model.pth')
         rotated_crops_array = rotate_to_horizontal(good_for_rotation_crops_arrays, model_path, logging_dataframe=crop_quality_dataframe)
 
         if len(rotated_crops_array) == 0:
-            print(f'Could not detect text on any of the rods!')
+            print('Could not detect text on any of the rods!')
             show_rod_detection_results(rod_detection_results)
             show_quality_verdict(crop_quality_dataframe)
             st.stop()
 
+    with st.spinner('Detecting digits...'):
         rotated_crops_array_flipped = make_flipped_crop_array(rotated_crops_array)
 
         digit_detection_model_path = os.path.join(DIGIT_DETECTION_FOLDER, "digit_weights.pt")
@@ -144,7 +146,10 @@ if st.sidebar.button('Run the pipeline'):
 
         more_confident_detection_box_data_arrays, more_confident_crop_data = select_more_confident_data_arrays(filtered_rotated_crops_detection_box_data_arrays, filtered_rotated_crops_detection_box_data_arrays_flipped, rotated_crops_array, rotated_crops_array_flipped, logging_dataframe=crop_quality_dataframe)
 
-    st.success('Done!')
+    if all([sum([data_box.confidence for data_box in detection_box_data_array.box_array]) == 0 for detection_box_data_array in more_confident_detection_box_data_arrays]):
+        st.error('Could not detect digits on any of the rods!')
+    else:
+        st.success('Done!')
     
     show_rod_detection_results(rod_detection_results)
     show_quality_verdict(crop_quality_dataframe)
@@ -154,7 +159,15 @@ if st.sidebar.button('Run the pipeline'):
             continue
 
         st.header(detection_box_data_array.img_name)
-        st.image(crop_data.img_tensor, channels='BGR')
+
+        digit_image = tt.ToPILImage()(cv2.cvtColor(crop_data.img_tensor, cv2.COLOR_BGR2RGB))
+        canvas_digit_image = ImageDraw.Draw(digit_image)
+
+        for detection_box_data in detection_box_data_array.box_array:
+            canvas_digit_image.rectangle(detection_box_data.get_top_left_and_bottom_right(), outline='red', width=2)
+        
+        st.image(digit_image)
+
         st.write(
             'With an average digit-wise confidence of',
             float('{0:.4f}'.format(
@@ -162,3 +175,4 @@ if st.sidebar.button('Run the pipeline'):
             ))
         )
         st.write('Found', detection_box_data_array.merge_digits_into_strings())
+        
