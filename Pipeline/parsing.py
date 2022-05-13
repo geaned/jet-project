@@ -12,13 +12,6 @@ from quality_metrics import local_check_after_detection
 
 IOU_THRESHOLD = 0.3
 
-def create_folder_if_necessary(folder_name: str):
-    try:
-        os.makedirs(folder_name)
-        print(f'Folder "{folder_name}" created, saving cropped rods...')
-    except FileExistsError:
-        print(f'Folder "{folder_name}" exists, saving cropped rods...')
-
 def get_preemptively_globally_good_images_names(images_file_paths: List[str], logging_dataframe: Optional[pd.DataFrame] = None) -> Set[str]:
     good_image_names = set()
 

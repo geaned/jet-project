@@ -1,8 +1,6 @@
-import logging
 from typing import List, Optional
 import cv2
 import imutils
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
@@ -11,6 +9,7 @@ import segmentation_models_pytorch as smp
 
 from output_info import set_negative_entry
 from utils import download_if_file_not_present
+from utils import create_folder_if_necessary
 
 from scipy.optimize import minimize
 from sklearn.cluster import DBSCAN
@@ -72,12 +71,15 @@ def detect_text(images_by_file_path, model_path):
                 pr_mask,
                 dtype=float,
             ),
-            (image_shape[0], image_shape[1]),
+            (image_shape[1], image_shape[0]),
         )
 
     return masks_by_file_path
 
-def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, logging_dataframe: Optional[pd.DataFrame] = None):
+def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, masks_folder: Optional[str] = None, logging_dataframe: Optional[pd.DataFrame] = None):
+    if masks_folder is not None:
+        create_folder_if_necessary(masks_folder)
+
     print('Parsing crops...')
     images_by_file_path = {}
     for file_path in file_paths:
@@ -90,7 +92,7 @@ def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, loggi
 
     for file_path in file_paths:
         file_name = os.path.basename(file_path)
-        print(f'Rotating and saving crop to {file_path}... ', end='')
+        print(f'Rotating and saving crops {"and masks " if masks_folder is not None else ""}to {file_path}... ', end='')
 
         if masks_by_file_path[file_path].sum() == 0:
             reason_for_removal = 'Text area not found'
@@ -112,3 +114,9 @@ def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, loggi
             os.path.join(result_folder, flipped_file_name),
             imutils.rotate_bound(cv2.cvtColor(images_by_file_path[file_path], cv2.COLOR_RGB2BGR), angle=second_angle),
         )
+
+        if masks_folder is not None:
+            cv2.imwrite(
+                os.path.join(masks_folder, file_name),
+                masks_by_file_path[file_path] * 255,
+            )

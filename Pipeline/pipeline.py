@@ -5,7 +5,6 @@ import argparse
 from parsing import get_preemptively_globally_good_images_names
 from parsing import get_latest_detection_label_paths
 from parsing import get_detection_box_data_for_filtered_images
-from parsing import create_folder_if_necessary
 from parsing import save_cropped_images
 from parsing import get_locally_good_crops_paths
 from parsing import remove_overlapping_bounding_boxes_by_iou
@@ -17,10 +16,12 @@ from output_info import write_dataframe_sorted_by_name
 from output_info import get_full_stats_from_dataframe
 from rotation import rotate_to_horizontal
 from utils import download_if_file_not_present
+from utils import create_folder_if_necessary
 
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('--source', nargs=1, required=True, help='Source folder with images in .png format')
+arg_parser.add_argument('--masks', default=False, action='store_true', help='Save text segmentation masks')
 exec_args = arg_parser.parse_args()
 
 IMAGES_FOLDER = exec_args.source[0]
@@ -30,6 +31,7 @@ DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Dig
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
 
 CROP_RESULT_FOLDER = 'crops'
+MASKS_RESULT_FOLDER = 'masks' if exec_args.masks else None
 ROTATION_RESULT_FOLDER = 'results'
 STRING_RESULT_FOLDER = 'strings'
 
@@ -77,7 +79,7 @@ create_folder_if_necessary(ROTATION_RESULT_FOLDER)
 
 # rotate crops to make text horizontal
 model_path = os.path.join(ROTATION_FOLDER, 'text_segmentation_model.pth')
-rotate_to_horizontal(good_crops_for_rotation, ROTATION_RESULT_FOLDER, model_path, logging_dataframe=crop_quality_dataframe)
+rotate_to_horizontal(good_crops_for_rotation, ROTATION_RESULT_FOLDER, model_path, masks_folder=MASKS_RESULT_FOLDER, logging_dataframe=crop_quality_dataframe)
 
 # download digit detection model if not present
 digit_detection_model_path = os.path.join(DIGIT_DETECTION_FOLDER, "digit_weights.pt")
