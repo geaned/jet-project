@@ -24,6 +24,7 @@ from rotation import rotate_to_horizontal
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('--source', nargs=1, required=True, help='Source folder with images in .png format')
+arg_parser.add_argument('--masks', default=False, action='store_true')
 arg_parser.add_argument('--crops', default=False, action='store_true')
 arg_parser.add_argument('--no-rotations', default=False, action='store_true')
 exec_args = arg_parser.parse_args()
@@ -35,6 +36,7 @@ DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Dig
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
 
 CROP_RESULT_FOLDER = 'crops'
+MASKS_RESULT_FOLDER = 'masks' if exec_args.masks else None
 ROTATION_RESULT_FOLDER = 'results'
 STRING_RESULT_FOLDER = 'strings'
 
@@ -94,7 +96,7 @@ gc.collect()
 
 # rotate crops to make text horizontal
 model_path = os.path.join(ROTATION_FOLDER, 'text_segmentation_model.pth')
-rotated_crops_array = rotate_to_horizontal(good_for_rotation_crops_arrays, model_path, logging_dataframe=crop_quality_dataframe)
+rotated_crops_array = rotate_to_horizontal(good_for_rotation_crops_arrays, model_path, masks_folder=MASKS_RESULT_FOLDER, logging_dataframe=crop_quality_dataframe)
 
 del good_for_rotation_crops_arrays
 gc.collect()

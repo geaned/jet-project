@@ -84,8 +84,11 @@ def detect_text(detection_box_data_arrays: List[DetectionBoxDataArray], model_pa
 
     return masks_found
 
-def rotate_to_horizontal(detection_box_data_arrays: List[DetectionBoxDataArray], model_path, save_rotations: bool = False, logging_dataframe: Optional[pd.DataFrame] = None) -> List[BasicCropData]:
-    print('Looking for text masks on crops...')
+def rotate_to_horizontal(detection_box_data_arrays: List[DetectionBoxDataArray], model_path, masks_folder: Optional[str] = None, logging_dataframe: Optional[pd.DataFrame] = None) -> List[BasicCropData]:
+    if masks_folder is not None:
+        create_folder_if_necessary(masks_folder)
+
+    print(f'Looking for text masks on crops{" and saving masks" if masks_folder is not None else ""}...')
     masks_for_arrays = detect_text(detection_box_data_arrays, model_path)
 
     rotated_crops_with_data = []
@@ -106,7 +109,14 @@ def rotate_to_horizontal(detection_box_data_arrays: List[DetectionBoxDataArray],
                 
                 continue
             print()
+
             good_indices.append(idx)
+
+            if masks_folder is not None:
+                cv2.imwrite(
+                    os.path.join(masks_folder, crop_name),
+                    mask * 255
+                )
 
             opt_angle = optimal_angle(mask, clusterization=True)
             opt_angles.append(opt_angle)
