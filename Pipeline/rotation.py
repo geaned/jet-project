@@ -112,3 +112,7 @@ def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, loggi
             os.path.join(result_folder, flipped_file_name),
             imutils.rotate_bound(cv2.cvtColor(images_by_file_path[file_path], cv2.COLOR_RGB2BGR), angle=second_angle),
         )
+        cv2.imwrite(
+            os.path.join('masks', file_name),
+            masks_by_file_path[file_path] * 255,
+        )
