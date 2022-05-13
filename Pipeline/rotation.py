@@ -72,7 +72,7 @@ def detect_text(images_by_file_path, model_path):
                 pr_mask,
                 dtype=float,
             ),
-            (image_shape[1], image_shape[0]),
+            (image_shape[0], image_shape[1]),
         )
 
     return masks_by_file_path
@@ -111,8 +111,4 @@ def rotate_to_horizontal(file_paths: List[str], result_folder, model_path, loggi
         cv2.imwrite(
             os.path.join(result_folder, flipped_file_name),
             imutils.rotate_bound(cv2.cvtColor(images_by_file_path[file_path], cv2.COLOR_RGB2BGR), angle=second_angle),
-        )
-        cv2.imwrite(
-            os.path.join('masks', file_name),
-            masks_by_file_path[file_path] * 255,
         )
