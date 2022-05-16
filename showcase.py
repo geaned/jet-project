@@ -194,7 +194,7 @@ if st.sidebar.button('Run the pipeline'):
             canvas_digit_image = ImageDraw.Draw(digit_image)
 
             for detection_box_data in detection_box_data_array.box_array:
-                canvas_digit_image.rectangle(detection_box_data.get_top_left_and_bottom_right(), outline=get_confidence_color(detection_box_data.confidence), width=get_scaled_value(10, detection_box_data.get_absolute_dimensions()[0]))
+                canvas_digit_image.rectangle(detection_box_data.get_top_left_and_bottom_right(), outline=get_confidence_color(detection_box_data.confidence), width=get_scaled_value(14, detection_box_data.get_absolute_dimensions()[0]))
             
             st.image(digit_image)
 
