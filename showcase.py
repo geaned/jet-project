@@ -1,5 +1,6 @@
 import streamlit as st
-from PIL import Image, ImageDraw
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 import torchvision.transforms as tt
 import os
 import sys
@@ -21,48 +22,76 @@ from Pipeline.output_info import make_base_dataframe_for_paths
 from Pipeline.rotation import rotate_to_horizontal
 
 
+def get_confidence_color(confidence: float):
+    return (
+        int(min(255, max(0, 255 - (confidence - 0.85) * 20 * 255))),
+        int(min(255, max(0, (confidence - 0.75) * 20 * 255))),
+        0,
+    )
+
+def get_scaled_value(value, img_width):
+    return int(max(1, value * max(720, img_width) / 3000))
+
 def show_rod_detection_results(rod_detection_df):
-    st.header('Rod detection results')
-    st.dataframe(rod_detection_df.pandas().xyxy[0].drop(columns=['class', 'name']).rename(columns={'xmin': 'Left', 'ymin': 'Top', 'xmax': 'Right', 'ymax': 'Bottom', 'confidence': 'Confidence'}))
-    rod_image = tt.ToPILImage()(cv2.cvtColor(image_tensor, cv2.COLOR_BGR2RGB))
-    canvas_rod_image = ImageDraw.Draw(rod_image)
+    with st.expander('Rod detection results'):
+        rod_image = tt.ToPILImage()(cv2.cvtColor(image_tensor, cv2.COLOR_BGR2RGB))
+        canvas_rod_image = ImageDraw.Draw(rod_image)
 
-    for crop in rod_detection_df.xyxy[0]:
-        left, top, right, bottom, _, _ = crop
-        canvas_rod_image.rectangle([(left, top), (right, bottom)], outline='red', width=10)
+        text_font = ImageFont.truetype(os.path.join(RESOURCES_FOLDER, 'arial.ttf'), get_scaled_value(150, rod_image.size[0]))
+        for idx, crop in enumerate(rod_detection_df.xyxy[0]):
+            left, top, right, bottom, confidence, _ = crop
+            canvas_rod_image.rectangle([(left, top), (right, bottom)], outline=get_confidence_color(confidence), width=get_scaled_value(10, rod_image.size[0]))
+            canvas_rod_image.text((left + get_scaled_value(12, rod_image.size[0]), top), str(idx), fill=get_confidence_color(confidence), align='left', font=text_font)
 
-    st.image(rod_image)
+        st.image(rod_image)
 
-def show_quality_verdict(quality_df):
-    st.header('Quality verdict')
-    st.dataframe(quality_df.drop(columns=['Name', 'Good']))
+def show_quality_verdict(rod_detection_df, quality_df):
+    overall_df = quality_df.drop(columns=['Name', 'Good'])
+    overall_df['Rod confidence'] = rod_detection_df['confidence']
+    overall_df = overall_df[['Rod confidence', 'Verdict']]
+
+    with st.expander('Quality verdict'):
+        st.dataframe(overall_df)
 
 
 DEVICE = 0 if torch.cuda.is_available() else 'cpu'
 
 st.header('Serial number detection')
-st.write('Select an image and choose image area via sidebar')
+st.write('Upload an image via the widget on the sidebar')
 
-IMAGES_FOLDER = os.path.join(os.path.dirname(__file__), 'showcase_images')
+RESOURCES_FOLDER = os.path.join(os.path.dirname(__file__), 'showcase_resources')
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), 'Rod_detection')
 DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), 'Digit_detection')
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), 'Rotation')
 
-found_images_names = [os.path.join(IMAGES_FOLDER, image_name) for image_name in sorted(os.listdir(IMAGES_FOLDER))]
-chosen_image_path = st.sidebar.selectbox('Choose an image', found_images_names, index=0, format_func=os.path.basename)
+file_bytes = st.sidebar.file_uploader('Provide an image')
 
-image = Image.open(chosen_image_path)
-canvas_image = ImageDraw.Draw(image)
-left, right = st.sidebar.slider(label='Horizontal bounds', min_value=0, max_value=image.size[0], value=(0, image.size[0]))
-top, bottom = st.sidebar.slider(label='Vertical bounds', min_value=0, max_value=image.size[1], value=(0, image.size[1]))
+if file_bytes is None:
+    st.stop()
+
+full_image_tensor = cv2.imdecode(np.asarray(bytearray(file_bytes.read()), dtype=np.uint8), cv2.IMREAD_COLOR)
+
+try:
+    full_image = tt.ToPILImage()(cv2.cvtColor(full_image_tensor, cv2.COLOR_BGR2RGB))
+except cv2.error:
+    st.error('Uploaded file should be an image')
+    st.stop()
+
+
+st.success('File loaded successfully!')
+st.write('Now choose the desired area of the image')
+
+canvas_image = ImageDraw.Draw(full_image)
+left, right = st.sidebar.slider(label='Horizontal bounds', min_value=0, max_value=full_image.size[0], value=(0, full_image.size[0]))
+top, bottom = st.sidebar.slider(label='Vertical bounds', min_value=0, max_value=full_image.size[1], value=(0, full_image.size[1]))
 
 canvas_image.rectangle([(left, top), (right, bottom)], outline='blue', width=10)
 
-st.image(image)
-
-image_tensor = cv2.imread(chosen_image_path)[top:bottom, left:right]
+st.image(full_image)
 
 if st.sidebar.button('Run the pipeline'):
+    image_tensor = full_image_tensor[top:bottom][left:right]
+
     if image_tensor.size == 0:
         st.error('Crop with zero area selected')
         st.stop()
@@ -83,7 +112,7 @@ if st.sidebar.button('Run the pipeline'):
         rod_detection_results_tensors = rod_detection_results.xyxy
 
         actually_good_detection_box_data_arrays = organize_and_filter_detection_results(
-            [os.path.basename(chosen_image_path)],
+            ['sample_image.png'],
             rod_detection_results_tensors,
             [image_tensor],
             apply_local_filter=False
@@ -103,7 +132,7 @@ if st.sidebar.button('Run the pipeline'):
         if len(good_for_rotation_crops_arrays[0].box_array) == 0:
             st.error('None of the rods passed local quality evaluation!')
             show_rod_detection_results(rod_detection_results)
-            show_quality_verdict(crop_quality_dataframe)
+            show_quality_verdict(rod_detection_results.pandas().xyxy[0], crop_quality_dataframe)
             st.stop()
 
     with st.spinner('Rotating rods...'):
@@ -113,7 +142,7 @@ if st.sidebar.button('Run the pipeline'):
         if len(rotated_crops_array) == 0:
             print('Could not detect text on any of the rods!')
             show_rod_detection_results(rod_detection_results)
-            show_quality_verdict(crop_quality_dataframe)
+            show_quality_verdict(rod_detection_results.pandas().xyxy[0], crop_quality_dataframe)
             st.stop()
 
     with st.spinner('Detecting digits...'):
@@ -150,29 +179,31 @@ if st.sidebar.button('Run the pipeline'):
         st.error('Could not detect digits on any of the rods!')
     else:
         st.success('Done!')
-    
+
     show_rod_detection_results(rod_detection_results)
-    show_quality_verdict(crop_quality_dataframe)
+    show_quality_verdict(rod_detection_results.pandas().xyxy[0], crop_quality_dataframe)
 
     for detection_box_data_array, crop_data in zip(more_confident_detection_box_data_arrays, more_confident_crop_data):
         if sum([data_box.confidence for data_box in detection_box_data_array.box_array]) == 0:
             continue
 
-        st.header(detection_box_data_array.img_name)
-
-        digit_image = tt.ToPILImage()(cv2.cvtColor(crop_data.img_tensor, cv2.COLOR_BGR2RGB))
-        canvas_digit_image = ImageDraw.Draw(digit_image)
-
-        for detection_box_data in detection_box_data_array.box_array:
-            canvas_digit_image.rectangle(detection_box_data.get_top_left_and_bottom_right(), outline='red', width=2)
+        image_col, output_col = st.columns(2)
         
-        st.image(digit_image)
+        with image_col:
+            digit_image = tt.ToPILImage()(cv2.cvtColor(crop_data.img_tensor, cv2.COLOR_BGR2RGB))
+            canvas_digit_image = ImageDraw.Draw(digit_image)
 
-        st.write(
-            'With an average digit-wise confidence of',
-            float('{0:.4f}'.format(
-                sum([detection_box_data_array.box_array[idx].confidence for idx in range(len(detection_box_data_array.box_array))]) / len(detection_box_data_array.box_array), 'found'
-            ))
-        )
-        st.write('Found', detection_box_data_array.merge_digits_into_strings())
-        
+            for detection_box_data in detection_box_data_array.box_array:
+                canvas_digit_image.rectangle(detection_box_data.get_top_left_and_bottom_right(), outline=get_confidence_color(detection_box_data.confidence), width=get_scaled_value(10, detection_box_data.get_absolute_dimensions()[0]))
+            
+            st.image(digit_image)
+
+        with output_col:
+            st.header(f'Rod {crop_data.index}')
+            st.write(
+                'With an average digit-wise confidence of',
+                float('{0:.4f}'.format(
+                    sum([detection_box_data_array.box_array[idx].confidence for idx in range(len(detection_box_data_array.box_array))]) / len(detection_box_data_array.box_array), 'found'
+                ))
+            )
+            st.write('Found', detection_box_data_array.merge_digits_into_strings())
