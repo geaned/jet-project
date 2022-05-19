@@ -1,4 +1,4 @@
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Tuple
 import pandas as pd
 import os
 import cv2
@@ -52,7 +52,8 @@ def organize_and_filter_detection_results(images_names: List[str], detection_ten
     for image_name, detection_tensor, image_tensor in zip(images_names, detection_tensors, image_tensors):
         current_detection_box_data_array = []
 
-        for idx, detection_box_line in enumerate(detection_tensor.cpu().numpy()):
+        sorted_detection_list = sorted(list(detection_tensor.cpu().numpy()), key=lambda elem: elem[1])
+        for idx, detection_box_line in enumerate(sorted_detection_list):
             left, top, right, bottom, confidence, num_class = detection_box_line
             image_tensor_cropped = image_tensor[int(top):int(bottom), int(left):int(right)]
             current_detection_box_data_array.append(DetectionBoxData(idx, int(num_class), image_tensor_cropped, left, top, right, bottom, confidence))
@@ -187,14 +188,14 @@ def select_more_confident_data_arrays(detection_box_data_arrays: List[DetectionB
         second_box_array_items_amount = len(detection_box_data_array_flipped.box_array)
 
         if first_box_array_items_amount == 0 and second_box_array_items_amount == 0:
-            reason_for_bad = 'Digits not found'
+            reason_for_bad = 'Text strings not found'
 
             print(reason_for_bad)
             if logging_dataframe is not None:
                 set_negative_entry(logging_dataframe, detection_box_data_array.img_name, reason_for_bad)
             continue
 
-        print(f'Culmulative confidence {first_confidence_sum:.2f} ({first_box_array_items_amount} digits) vs. {second_confidence_sum:.2f} ({second_box_array_items_amount} digits)')
+        print(f'Cumulative confidence {first_confidence_sum:.2f} ({first_box_array_items_amount} text strings) vs. {second_confidence_sum:.2f} ({second_box_array_items_amount} text strings)')
         if first_confidence_sum > second_confidence_sum:
             more_confident_box_data_arrays.append(detection_box_data_array)
             more_confident_crops_data_array.append(crops_data)

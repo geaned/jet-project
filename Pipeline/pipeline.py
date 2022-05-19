@@ -14,7 +14,6 @@ from parsing import make_flipped_crop_array
 from parsing import remove_overlapping_bounding_boxes_by_iou
 from parsing import select_more_confident_data_arrays
 from parsing import save_crops
-from parsing import group_and_write_strings_to_text_files
 from pipeline_utils import download_if_file_not_present
 from output_info import make_base_dataframe_for_paths
 from output_info import write_dataframe_sorted_by_name
@@ -30,19 +29,17 @@ arg_parser.add_argument('--no-rotations', default=False, action='store_true')
 exec_args = arg_parser.parse_args()
 
 IMAGES_FOLDER = exec_args.source[0]
-YOLO_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'yolov5')
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rod_detection')
-DIGIT_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Digit_detection')
+OCR_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'OCR')
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
+RECOGNITION_BENCHMARK_FOLDER = os.path.join(OCR_FOLDER, 'deep-text-recognition-benchmark')
 
 CROP_RESULT_FOLDER = 'crops'
 MASKS_RESULT_FOLDER = 'masks' if exec_args.masks else None
 ROTATION_RESULT_FOLDER = 'results'
-STRING_RESULT_FOLDER = 'strings'
+STRING_RESULT_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'strings')
 
 DEVICE = 0 if torch.cuda.is_available() else 'cpu'
-
-detect_folder = os.path.join(YOLO_FOLDER, "runs/detect")
 
 start_time = time.time()
 
@@ -104,9 +101,9 @@ gc.collect()
 # make crops array for flipped crops
 rotated_crops_array_flipped = make_flipped_crop_array(rotated_crops_array)
 
-# download digit detection model if not present
-digit_detection_model_path = os.path.join(DIGIT_DETECTION_FOLDER, "digit_weights.pt")
-download_if_file_not_present('1KTLSkFf8-VuwtPRArxLQINzUhKhY2Qle', digit_detection_model_path)
+# download text strings detection model if not present
+text_strings_detection_model_path = os.path.join(OCR_FOLDER, "ocr_weights.pt")
+download_if_file_not_present('1h0r5XWEjtyc2-Dk0x6w-6jP0BveRTsUA', text_strings_detection_model_path)
 
 # prepare data for detection (for flipped as well)
 crop_images_names = [rotated_crop.get_file_name_for_crop_box() for rotated_crop in rotated_crops_array]
@@ -114,26 +111,33 @@ rotated_crops = [rotated_crop.img_tensor for rotated_crop in rotated_crops_array
 crop_images_names_flipped = [rotated_crop.get_file_name_for_crop_box() for rotated_crop in rotated_crops_array_flipped]
 rotated_crops_flipped = [rotated_crop.img_tensor for rotated_crop in rotated_crops_array_flipped]
 
-# detect digits (for flipped as well)
-digit_detection_model = torch.hub.load('ultralytics/yolov5', 'custom', path=digit_detection_model_path, device=DEVICE)
+# detect text strings (for flipped as well)
+text_strings_detection_model = torch.hub.load(
+    'ultralytics/yolov5', 'custom', path=text_strings_detection_model_path, device=DEVICE,
+)
+text_strings_detection_model.conf = 0.6
 
-digit_detection_results = digit_detection_model(rotated_crops, size=640)
-digit_detection_results.print()
-digit_detection_results_flipped = digit_detection_model(rotated_crops_flipped, size=640)
-digit_detection_results_flipped.print()
+text_strings_detection_results = text_strings_detection_model(rotated_crops, size=640)
+text_strings_detection_results.print()
+text_strings_detection_results_flipped = text_strings_detection_model(rotated_crops_flipped, size=640)
+text_strings_detection_results_flipped.print()
 
-digit_detection_results_tensors = digit_detection_results.xyxy
-digit_detection_results_flipped_tensors = digit_detection_results_flipped.xyxy
+text_strings_detection_results_tensors = text_strings_detection_results.xyxy
+text_strings_detection_results_flipped_tensors = text_strings_detection_results_flipped.xyxy
 
-# organize digit detection data into special classes (for flipped as well)
-rotated_crops_detection_box_data_arrays = organize_and_filter_detection_results(crop_images_names, digit_detection_results_tensors, rotated_crops)
-rotated_crops_detection_box_data_arrays_flipped = organize_and_filter_detection_results(crop_images_names_flipped, digit_detection_results_flipped_tensors, rotated_crops_flipped)
+# organize text strings detection data into special classes (for flipped as well)
+rotated_crops_detection_box_data_arrays = organize_and_filter_detection_results(
+    crop_images_names, text_strings_detection_results_tensors, rotated_crops,
+)
+rotated_crops_detection_box_data_arrays_flipped = organize_and_filter_detection_results(
+    crop_images_names_flipped, text_strings_detection_results_flipped_tensors, rotated_crops_flipped,
+)
 
-# resolve digit intersections (for flipped as well)
+# resolve text strings intersections (for flipped as well)
 filtered_rotated_crops_detection_box_data_arrays = remove_overlapping_bounding_boxes_by_iou(rotated_crops_detection_box_data_arrays)
 filtered_rotated_crops_detection_box_data_arrays_flipped = remove_overlapping_bounding_boxes_by_iou(rotated_crops_detection_box_data_arrays_flipped)
 
-# filter out least possible rotation among each pair for a non-flipped image and a flipped image
+# filter out the least possible rotation among each pair for a non-flipped image and a flipped image
 more_confident_detection_box_data_arrays, more_confident_crop_data = select_more_confident_data_arrays(filtered_rotated_crops_detection_box_data_arrays, filtered_rotated_crops_detection_box_data_arrays_flipped, rotated_crops_array, rotated_crops_array_flipped, logging_dataframe=crop_quality_dataframe)
 
 del filtered_rotated_crops_detection_box_data_arrays
@@ -146,8 +150,22 @@ gc.collect()
 if not exec_args.no_rotations:
     save_crops(ROTATION_RESULT_FOLDER, more_confident_crop_data)
 
-# merge found digits into string and output and save crop quality dataframe
-group_and_write_strings_to_text_files(STRING_RESULT_FOLDER, more_confident_detection_box_data_arrays)
+# download rosetta recognition model if not present
+ROSETTA_MODEL_PATH = os.path.join(OCR_FOLDER, "rosetta_with_gans.pth")
+download_if_file_not_present('1fEfZfqRdz8Hb5IkplM2mxVPxiR1LBIDc', ROSETTA_MODEL_PATH)
+
+# save cropped text strings
+TEXT_STRINGS_IMAGES_PATH = os.path.join(OCR_FOLDER, 'text_strings')
+save_cropped_images(TEXT_STRINGS_IMAGES_PATH, more_confident_detection_box_data_arrays)
+
+# recognize serial numbers and output them
+NUMBER_RECOGNITION_SCRIPT_PATH = os.path.join(RECOGNITION_BENCHMARK_FOLDER, 'number_recognition.py')
+os.system(
+    f'python {NUMBER_RECOGNITION_SCRIPT_PATH} --image_folder {TEXT_STRINGS_IMAGES_PATH}\
+    --saved_model {ROSETTA_MODEL_PATH} --string_result_folder {STRING_RESULT_FOLDER}'
+)
+
+# output predicted serial numbers and save crop quality dataframe
 write_dataframe_sorted_by_name(crop_quality_dataframe, 'crop_quality.csv')
 
 finish_time = time.time()
