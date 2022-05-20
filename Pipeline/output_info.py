@@ -24,7 +24,7 @@ CROP_REASON_ORDER = [
     'Crop area is too thin',
     'Crop square is too small',
     'Text area not found',
-    'Digits not found',
+    'Text strings not found',
 ]
 
 def make_base_dataframe_for_paths(paths: List[str]) -> pd.DataFrame:
