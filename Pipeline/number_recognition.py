@@ -37,8 +37,7 @@ class Options:
 def get_rosetta_predictions_and_confs(saved_model_path: str, image_folder: str) -> List[Tuple[str, str, float]]:
     predictions_array = []
 
-    #DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    DEVICE = 'cpu'
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     cudnn.benchmark = True
     cudnn.deterministic = True
 

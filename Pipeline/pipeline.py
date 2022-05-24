@@ -45,8 +45,7 @@ ROTATION_RESULT_FOLDER = 'results'
 STRING_RESULT_FOLDER = 'strings'
 TEXT_STRINGS_IMAGES_PATH = 'text_strings'
 
-#DEVICE = 0 if torch.cuda.is_available() else 'cpu'
-DEVICE = 'cpu'
+DEVICE = 0 if torch.cuda.is_available() else 'cpu'
 
 start_time = time.time()
 
