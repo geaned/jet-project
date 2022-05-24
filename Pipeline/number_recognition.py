@@ -1,5 +1,4 @@
 import os
-import argparse
 from typing import List, Tuple
 
 import torch
@@ -7,9 +6,10 @@ import torch.backends.cudnn as cudnn
 import torch.utils.data
 import torch.nn.functional as F
 
-from utils import CTCLabelConverter
-from dataset import RawDataset, AlignCollate
-from model import Model
+from deep_text_recognition_benchmark.utils import CTCLabelConverter
+from deep_text_recognition_benchmark.dataset import RawDataset, AlignCollate
+from deep_text_recognition_benchmark.model import Model
+from pipeline_utils import create_folder_if_necessary
 
 
 class Options:
@@ -37,7 +37,8 @@ class Options:
 def get_rosetta_predictions_and_confs(saved_model_path: str, image_folder: str) -> List[Tuple[str, str, float]]:
     predictions_array = []
 
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    DEVICE = 'cpu'
     cudnn.benchmark = True
     cudnn.deterministic = True
 
@@ -82,13 +83,6 @@ def get_rosetta_predictions_and_confs(saved_model_path: str, image_folder: str) 
 
     return predictions_array
 
-def create_folder_if_necessary(folder_name: str):
-    try:
-        os.makedirs(folder_name)
-        print(f'Folder "{folder_name}" created...')
-    except FileExistsError:
-        print(f'Folder "{folder_name}" exists...')
-
 def write_strings_to_text_files(destination_folder: str, rosetta_predictions: List[Tuple[str, str, float]]):
     create_folder_if_necessary(destination_folder)
 
@@ -98,13 +92,3 @@ def write_strings_to_text_files(destination_folder: str, rosetta_predictions: Li
         label_name = os.path.join(destination_folder, whole_img_name + '.txt')
         with open(label_name, 'a') as text_results:
             text_results.write(f'{predicted_number}\n')
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--image_folder', required=True, help='path to image_folder which contains text images')
-    parser.add_argument('--saved_model', required=True, help='path to recognition saved model')
-    parser.add_argument('--string_result_folder', required=True, help='path to result folder with predictions of serial numbers')
-    opt = parser.parse_args()
-
-    rosetta_preds = get_rosetta_predictions_and_confs(opt.saved_model, opt.image_folder)
-    write_strings_to_text_files(opt.string_result_folder, rosetta_preds)

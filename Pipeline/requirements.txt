@@ -5,7 +5,7 @@ segmentation-models-pytorch>=0.2.1
 imutils>=0.5.4
 opsdroid-get-image-size>=0.2.2
 gdown>=4.4.0
-torch>=1.11.0
+torch>=1.8.1
 # TensorRT optimization for NVIDIA GPUs -----
 # nvidia-pyindex>=1.0.9
 # nvidia-tensorrt>=8.4.0.6

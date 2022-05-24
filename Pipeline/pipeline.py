@@ -20,6 +20,12 @@ from output_info import write_dataframe_sorted_by_name
 from output_info import get_full_stats_from_dataframe
 from rotation import rotate_to_horizontal
 
+RECOGNITION_BENCHMARK_FOLDER = os.path.join(os.path.dirname(__file__), 'deep-text-recognition-benchmark')
+if os.path.exists(RECOGNITION_BENCHMARK_FOLDER):
+    os.rename(RECOGNITION_BENCHMARK_FOLDER, os.path.join(os.path.dirname(__file__), 'deep_text_recognition_benchmark'))
+
+from number_recognition import get_rosetta_predictions_and_confs
+from number_recognition import write_strings_to_text_files
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('--source', nargs=1, required=True, help='Source folder with images in .png format')
@@ -32,14 +38,15 @@ IMAGES_FOLDER = exec_args.source[0]
 ROD_DETECTION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rod_detection')
 OCR_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'OCR')
 ROTATION_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'Rotation')
-RECOGNITION_BENCHMARK_FOLDER = os.path.join(OCR_FOLDER, 'deep-text-recognition-benchmark')
 
 CROP_RESULT_FOLDER = 'crops'
 MASKS_RESULT_FOLDER = 'masks' if exec_args.masks else None
 ROTATION_RESULT_FOLDER = 'results'
-STRING_RESULT_FOLDER = os.path.join(os.path.dirname(__file__), os.pardir, 'strings')
+STRING_RESULT_FOLDER = 'strings'
+TEXT_STRINGS_IMAGES_PATH = 'text_strings'
 
-DEVICE = 0 if torch.cuda.is_available() else 'cpu'
+#DEVICE = 0 if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cpu'
 
 start_time = time.time()
 
@@ -155,15 +162,11 @@ ROSETTA_MODEL_PATH = os.path.join(OCR_FOLDER, "rosetta_with_gans.pth")
 download_if_file_not_present('1fEfZfqRdz8Hb5IkplM2mxVPxiR1LBIDc', ROSETTA_MODEL_PATH)
 
 # save cropped text strings
-TEXT_STRINGS_IMAGES_PATH = os.path.join(OCR_FOLDER, 'text_strings')
 save_cropped_images(TEXT_STRINGS_IMAGES_PATH, more_confident_detection_box_data_arrays)
 
 # recognize serial numbers and output them
-NUMBER_RECOGNITION_SCRIPT_PATH = os.path.join(RECOGNITION_BENCHMARK_FOLDER, 'number_recognition.py')
-os.system(
-    f'python {NUMBER_RECOGNITION_SCRIPT_PATH} --image_folder {TEXT_STRINGS_IMAGES_PATH}\
-    --saved_model {ROSETTA_MODEL_PATH} --string_result_folder {STRING_RESULT_FOLDER}'
-)
+rosetta_preds = get_rosetta_predictions_and_confs(ROSETTA_MODEL_PATH, TEXT_STRINGS_IMAGES_PATH)
+write_strings_to_text_files(STRING_RESULT_FOLDER, rosetta_preds)
 
 # output predicted serial numbers and save crop quality dataframe
 write_dataframe_sorted_by_name(crop_quality_dataframe, 'crop_quality.csv')
