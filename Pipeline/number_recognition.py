@@ -14,9 +14,7 @@ import torchvision.transforms as transforms
 from pipeline_utils import create_folder_if_necessary
 
 
-#DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-DEVICE = 'cpu'
-
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Options:
     def __init__(self, saved_model_path: str):

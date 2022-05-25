@@ -43,10 +43,9 @@ CROP_RESULT_FOLDER = 'crops'
 MASKS_RESULT_FOLDER = 'masks' if exec_args.masks else None
 ROTATION_RESULT_FOLDER = 'results'
 STRING_RESULT_FOLDER = 'strings'
-TEXT_STRINGS_IMAGES_PATH = 'text_strings'
+TEXT_STRINGS_IMAGES_PATH = 'strings_images'
 
-#DEVICE = 0 if torch.cuda.is_available() else 'cpu'
-DEVICE = 'cpu'
+DEVICE = torch.device(0 if torch.cuda.is_available() else 'cpu')
 
 start_time = time.time()
 
