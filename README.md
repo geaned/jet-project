@@ -26,19 +26,6 @@ pip install -r Pipeline/requirements.txt
 ```
 
 Также для запуска пайплайна из ветки `master` необходимо склонировать [YOLOv5](https://github.com/ultralytics/yolov5) в корень репозитория и доустановить модули из файла `requirements.txt` для YOLOv5.
-
-Для запуска пайплайна из ветки `ocr` необходимо склонировать [deep-text-recognition-benchmark](https://github.com/clovaai/deep-text-recognition-benchmark) в папку `Pipeline`, после этого в полученной папке зайти в файл `model.py` и заменить все импорты modules на относительные:
-```
-from .modules.transformation import TPS_SpatialTransformerNetwork
-from .modules.feature_extraction import VGG_FeatureExtractor, RCNN_FeatureExtractor, ResNet_FeatureExtractor
-from .modules.sequence_modeling import BidirectionalLSTM
-from .modules.prediction import Attention
-```
-
-Также нужно доустановить модули, необходимые для работы `deep-text-recognition-benchmark`, командой:
-```
-pip install lmdb pillow torchvision nltk natsort
-```
 ## Демонстрация
 
 Демонстрация пайплайна находится в файле `showcase.py` в ветке `experimental`, запускаемом с помощью команды
