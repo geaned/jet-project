@@ -26,6 +26,8 @@ pip install -r Pipeline/requirements.txt
 ```
 
 Также для запуска пайплайна из ветки `master` необходимо склонировать [YOLOv5](https://github.com/ultralytics/yolov5) в корень репозитория и доустановить модули из файла `requirements.txt` для YOLOv5.
+
+При написании OCR пайплайна использовались части кода из репозитория [deep-text-recognition-benchmark](https://github.com/clovaai/deep-text-recognition-benchmark).
 ## Демонстрация
 
 Демонстрация пайплайна находится в файле `showcase.py` в ветке `experimental`, запускаемом с помощью команды
