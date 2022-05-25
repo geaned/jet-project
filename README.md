@@ -27,11 +27,7 @@ pip install -r Pipeline/requirements.txt
 
 Также для запуска пайплайна из ветки `master` необходимо склонировать [YOLOv5](https://github.com/ultralytics/yolov5) в корень репозитория и доустановить модули из файла `requirements.txt` для YOLOv5.
 
-Для запуска пайплайна из ветки `ocr_pipeline` необходимо склонировать [deep-text-recognition-benchmark](https://github.com/clovaai/deep-text-recognition-benchmark) в папку `OCR` и переместить python-файл `number_recognition.py` в корень склонированного `deep-text-recognition-benchmark`.
-Также нужно доустановить модули, необходимые для работы `deep-text-recognition-benchmark`, командой:
-```
-pip install lmdb pillow torchvision nltk natsort
-```
+При написании OCR пайплайна использовались части кода из репозитория [deep-text-recognition-benchmark](https://github.com/clovaai/deep-text-recognition-benchmark).
 ## Демонстрация
 
 Демонстрация пайплайна находится в файле `showcase.py` в ветке `experimental`, запускаемом с помощью команды
