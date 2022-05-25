@@ -19,11 +19,6 @@ from output_info import make_base_dataframe_for_paths
 from output_info import write_dataframe_sorted_by_name
 from output_info import get_full_stats_from_dataframe
 from rotation import rotate_to_horizontal
-
-RECOGNITION_BENCHMARK_FOLDER = os.path.join(os.path.dirname(__file__), 'deep-text-recognition-benchmark')
-if os.path.exists(RECOGNITION_BENCHMARK_FOLDER):
-    os.rename(RECOGNITION_BENCHMARK_FOLDER, os.path.join(os.path.dirname(__file__), 'deep_text_recognition_benchmark'))
-
 from number_recognition import get_rosetta_predictions_and_confs
 from number_recognition import write_strings_to_text_files
 
