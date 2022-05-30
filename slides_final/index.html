@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+
+	<title>Презентация проекта от Инфосистемы Джет</title>
+
+	<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+	<meta name="author" content="Hakim El Hattab">
+
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="libs/reveal.js/4.1.3/reset.css">
+	<link rel="stylesheet" href="libs/reveal.js/4.1.3/reveal.css">
+
+	
+	
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+
+	  <!-- highlight Theme -->
+  	
+	  <link rel="stylesheet" href="libs/highlight.js/11.3.1/styles/monokai.min.css">
+	
+	
+		
+	<link rel="stylesheet" href="libs/reveal.js/4.1.3/plugin/chalkboard/style.css">
+	
+	
+	
+		<link rel="stylesheet" href="libs/reveal.js/4.1.3/plugin/customcontrols/style.css">
+	
+	<link rel="stylesheet" href="libs/styles/tasklist.css">
+
+
+
+  <!-- Revealjs Theme -->
+  
+  	<link rel="stylesheet" href="libs/reveal.js/4.1.3/theme/night.css" id="theme">
+  
+  
+
+
+  <!-- Revealjs Theme -->
+  
+
+ 
+</head>
+
+<body>
+  
+    <div id="logo" style="position: fixed; top: 20px; left: 20px; z-index: 1; height:3rem;">
+        <img src="logo-full.png" style="height:100%"/>
+    </div>
+  
+
+
+  <div class="reveal">
+
+    <!-- Any section element inside of this container is displayed as a slide -->
+    <div class="slides">
+
+      
+
+
+    
+        <section >
+            
+            <h3>Распознавание серийных номеров на металлических заготовках</h3>
+<p>Команда проекта: Георгий Ангени, Ася Пределина, Марат Мовсин</p>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Проблема</h3>
+<p align='left'>У нас есть</p>
+<ul>
+<li>металлические заготовки (прутки) с серийными номерами на торцах;</li>
+<li>эксперт, который сортирует металлические заготовки по серийным номерам.</li>
+</ul>
+<p><b>Но!</b> Человеческий фактор никто не отменял, поэтому эту рутинную работу хочется доверить некоторому алгоритму.</p>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Цель проекта</h3>
+<p align='left'>Нужно разработать "конвейер", который</p>
+<ul>
+<li>обнаруживает отдельные прутки на фотографии;</li>
+<li>находит текст на каждом прутке и преобразовывает его в набор строчек;</li>
+<li><b><u>отбрасывает некачественные фотографии и возвращает неудовлетворенный критерий</u></b>.</li>
+</ul>
+<p>И делать это нужно <b>быстро</b>!<br><em>(в идеале за 1 секунду на фотографию)</em></p>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Наше решение</h3>
+<ul>
+<li>глобальная проверка качества с использованием общих признаков;</li>
+<li>детекция прутков на фотографии;</li>
+<li>глобальная проверка качества с использованием признаков, основанных на данных, полученных при детекции;</li>
+<li>локальная проверка качества;</li>
+<li>приведение текста на отдельных прутках в горизонтальное положение путем поворота;</li>
+<li>поиск текста на прутках <em>(одно из двух)</em>:
+<ul>
+<li>поиск отдельных цифр и сборка строк,</li>
+<li>optical character recognition (OCR).</li>
+</ul>
+</li>
+</ul>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Критерии качества</h3>
+<p align='left'>В "конвейере" применяются следующие критерии:</p>
+<ul>
+<li>средняя яркость по пикселям изображения;</li>
+<li>средний квадрат колебания яркости в малых окрестностях (STA6 в <a href="http://isp-utb.github.io/seminario/papers/Pattern_Recognition_Pertuz_2013.pdf">этой</a> статье);</li>
+<li>количество прутков на фотографии;</li>
+<li>взвешенная сумма расстояний от центров прутков до центра фото;</li>
+<li>площадь выделенных прутков;</li>
+<li>отношение ширины bounding box-а к высоте.</li>
+</ul>
+<p align='left'><u>До детекции:</u> отсеиваем сильный засвет и нечеткие изображения</p>
+<p align='left'><u>После детекции:</u> прутков очень много, их нет совсем или<br>они на краях</p>
+<p align='left'><u>Локальная проверка:</u> засвет и нечеткость, вытянутые<br> bounding box-ы и прутки малой площади</p>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Детекция прутков и символов</h3>
+<p align='left'>Используется модель <a href="https://github.com/ultralytics/yolov5">YOLOv5</a> из семейства YOLO. Причины:</p>
+<ul>
+<li>очень быстрый inference;</li>
+<li>максимально user-friendly документация и огромное количество полезных примочек “из коробки”: аугментации, мониторинг с помощью <a href="https://wandb.ai/site">W&amp;B</a> и т.д.</li>
+</ul>
+<img src="mem.png" height="300">
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Поворот прутков</h3>
+<p align='left'>Процесс поворота делится на следующие этапы:</p>
+<ul>
+<li>детекция областей с текстом с помощью модели U-Net;</li>
+<li>уменьшение размеров полученной маски;</li>
+<li>нахождение самой большой связной области с текстом при помощи DBSCAN;</li>
+<li>определение угла наклона путем минимизации дисперсии проекции маски;</li>
+<li>поворот изображения на угол, определенный на<br>предыдущем этапе.</li>
+</ul>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Optical Character Recognition (OCR)</h3>
+<p align='left'>Двухэтапная реализация:</p>
+<ul>
+<li>детекция строчек с номерами с помощью модели YOLOv5;</li>
+<li>распознавание серийных номеров: используется предобученная модель Rosetta (ResNet + CTC).</li>
+</ul>
+<img src="ocr.png" height="320">
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Генерация дополнительных данных для обучения OCR</h3>
+<p align='left'>Для улучшения качества OCR были сгенерированы дополнительные данные. Генерация включала в себя</p>
+<ul>
+<li>генерацию случайных последовательностей цифр;</li>
+<li>генерацию отдельных цифр при помощи генеративно-состязательной модели (GAN);</li>
+<li>выбор наиболее подходящих друг другу цифр;</li>
+<li>гладкое склеивание выбранных цифр при помощи<br>пирамид Лапласа.</li>
+</ul>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Слайд “для внимательных”</h3>
+<p align='left'><em><b>Q:</b> Но позвольте! Пусть даже если мы обрабатываем хорошее изображение с параллельными друг другу строками, модель поворота может привести снимок в два положения, отличающиеся друг от друга ровно на 180 градусов. Как быть?</em></p>
+<p align='left'><b>A:</b> Отличный вопрос! Казалось бы, решение проще некуда, давайте сравним <u>суммы значений confidence</u>.</p>
+<p align='left'>Причины, по которым это работает:</p>
+<ul>
+<li>модель очень редко ловит цифры “из воздуха”, поэтому мы верим, что чем больше их найдено на картинке, тем больше<br>шанс того, что она истинная;</li>
+<li>модель слегка привередлива к шрифту, поэтому<br>перевернутые цифры могут дать confidence ниже.</li>
+</ul>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Сравнение эффективности подходов</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>master    </th>
+<th>experimental</th>
+<th>experimental<br>+ ocr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Время на ноутбуке</td>
+<td>9 s/img</td>
+<td>5.6 s/img</td>
+<td>5.1 s/img</td>
+</tr>
+<tr>
+<td>Время на ПК с GPU</td>
+<td>3.8 s/img</td>
+<td>1.49 s/img</td>
+<td><b>1.46 s/img</b></td>
+</tr>
+<tr>
+<td></td>
+<td>нужна YOLOv5</td>
+<td>нагрузка на ОЗУ</td>
+<td>нагрузка на ОЗУ<br> </td>
+</tr>
+</tbody>
+</table>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Сравнение качества подходов</h3>
+<p align='left'>Используется метрика качества <a href="https://huggingface.co/metrics/cer">Character Error Rate</a> (CER).</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Детекция и компоновка</th>
+<th>Поиск областей и OCR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Отобранные фото</td>
+<td>0.358</td>
+<td><b>0.275</b></td>
+</tr>
+<tr>
+<td>Общие фото</td>
+<td>0.269</td>
+<td><b>0.253</b></td>
+</tr>
+<tr>
+<td>Хорошие фото</td>
+<td><b>0.007</b></td>
+<td>0.044</td>
+</tr>
+<tr>
+<td>Плохие фото</td>
+<td>0.536</td>
+<td><b>0.435</b></td>
+</tr>
+</tbody>
+</table>
+<p align='left'>Также стоит отметить, что "конвейер" с OCR на последнем<br>этапе совершает больше отбрасываний некачественных<br>изображений.</p>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Заключение</h3>
+<p align='left'>В ходе работы мы</p>
+<ul>
+<li>разработали промышленный продукт, который выполняет поставленную задачу достаточно быстро и с высокой точностью;</li>
+<li>рассмотрели, реализовали и сравнили два подхода к распознаванию текста: самописный и “из коробки”;</li>
+<li>изучили множество статей, тем самым углубив свои знания о компьютерном зрении, и получили прикладной опыт.</li>
+</ul>
+
+            </section>
+    
+
+
+
+    
+        <section >
+            
+            <h3>Демонстрация</h3>
+<p><a href="https://github.com/xAnGGx/jet-project">github.com/xAnGGx/jet-project</a></p>
+<p><img src="demo.png" alt="image" title="demo"></p>
+
+            </section>
+    
+
+
+    </div>
+
+
+  </div>
+
+  	
+	<script src="libs/reveal.js/4.1.3/reveal.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/zoom/zoom.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/notes/notes.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/search/search.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/markdown/markdown.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/highlight/highlight.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/menu/menu.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/math/math.js"></script>
+
+	<script src="libs/reveal.js/4.1.3/plugin/fullscreen/plugin.js"></script>
+  
+  	<script src="libs/reveal.js/4.1.3/plugin/animate/plugin.js"></script>
+  	<script src="libs/reveal.js/4.1.3/plugin/animate/svg.min.js"></script>
+  
+  	<script src="libs/reveal.js/4.1.3/plugin/anything/plugin.js"></script>
+	  <script src="libs/reveal.js/4.1.3/plugin/anything/Chart.min.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/anything/d3/d3.v3.min.js"></script>				
+	<script src="libs/reveal.js/4.1.3/plugin/anything/d3.patch.js"></script>			
+	<script src="libs/reveal.js/4.1.3/plugin/anything/d3/queue.v1.min.js"></script>		
+	<script src="libs/reveal.js/4.1.3/plugin/anything/d3/topojson.v1.min.js"></script>		
+	<script src="libs/reveal.js/4.1.3/plugin/anything/function-plot.js"></script>
+
+ <!--	<script src="libs/reveal.js/4.1.3/plugin/audio-slideshow/plugin.js"></script>  -->
+<!--	<script src="libs/reveal.js/4.1.3/plugin/audio-slideshow/recorder.js"></script>-->
+<!--	<script src="libs/reveal.js/4.1.3/plugin/audio-slideshow/RecordRTC.js"></script>-->
+
+<script src="libs/reveal.js/4.1.3/plugin/chalkboard/plugin.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/customcontrols/plugin.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/embed-tweet/plugin.js"></script>
+
+	<script src="libs/reveal.js/4.1.3/plugin/chart/chart.min.js"></script>
+	<script src="libs/reveal.js/4.1.3/plugin/chart/plugin.js"></script>
+
+  <script>
+
+		const printPlugins = [
+			RevealNotes, 
+			RevealHighlight,
+			RevealMath,
+			RevealAnimate,
+			RevealChalkboard, 
+			RevealEmbedTweet,
+			RevealChart,
+		];
+
+		const plugins =  [...printPlugins,
+		RevealZoom, 
+		RevealSearch, 
+				RevealMarkdown, 
+				RevealMenu, 
+				RevealFullscreen,
+				RevealAnything,
+				//RevealAudioSlideshow,
+				//RevealAudioRecorder,
+				RevealCustomControls, 
+				// poll
+				// question
+				// seminar
+				 ]
+
+
+		// Also available as an ES module, see:
+		// https://revealjs.com/initialization/
+		Reveal.initialize({
+			controls: true,
+			controlsTutorial: true,
+			controlsLayout: 'bottom-right',
+			controlsBackArrows: 'faded',
+			progress: true,
+			slideNumber: false,
+			//#showSlideNumber "all" "print" "speaker"
+			hash: true,//#  hash: false,
+			//# respondToHashChanges: true,
+			//# history: false,
+			keyboard: true,
+			//#keyboardCondition: null,
+			overview: true,
+			center: true,
+			touch: true,
+			loop: false,
+			rtl: false,
+			//#navigationMode: 'default', linear grid
+			shuffle: false,
+			fragments: true,
+			fragmentInURL: false,
+			embedded: false,
+			help: true,
+			//#pause: true
+			showNotes: false,
+			autoPlayMedia: false, // TODO fix this to a nullable value
+			//#preloadIframes: null. true false
+			//#autoAnimate: true
+			//#autoAnimateMatcher: null,
+			//#autoAnimateEasing: 'ease',
+			//autoAnimateDuration: 1.0,
+			//#autoAnimateUnmatched: true
+			//#autoAnimateStyles: []
+			autoSlide: 0, // TODO fix this to a falseable value
+			autoSlideStoppable: true,
+			autoSlideMethod: '0',
+			defaultTiming: 120,
+			mouseWheel: false,
+			//#previewLinks: false
+			//#postMessage: true,  // TODO : this can cause issues with the vscode api ???
+			//#postMessageEvents: false,
+			//#focusBodyOnPageVisibilityChange: true,
+			transition: 'slide',
+			transitionSpeed: 'default',
+			backgroundTransition: 'fade',
+			//#pdfMaxPagesPerSlide: Number.POSITIVE_INFINITY,
+			//#pdfSeparateFragments: true,
+			//#pdfPageHeightOffset: -1,
+			viewDistance: 3,
+			//#mobileViewDistance: 2,
+			display: 'block',
+			//#hideInactiveCursor: true,
+			//#hideCursorTime: 5000
+
+			// Parallax Background
+			parallaxBackgroundImage: '',
+			parallaxBackgroundSize: '',
+			parallaxBackgroundHorizontal: 0,
+			parallaxBackgroundVertical: 0,
+			
+			//Presentation Size
+			width: 960,
+			height: 700,
+			margin: 0.04,
+			minScale: 0.2,
+			maxScale: 2,
+			disableLayout: false,
+
+			audio: {
+				prefix: 'audio/', 	// audio files are stored in the "audio" folder
+				suffix: '.ogg',		// audio files have the ".ogg" ending
+				textToSpeechURL: null,  // the URL to the text to speech converter
+				defaultNotes: false, 	// use slide notes as default for the text to speech converter
+				defaultText: false, 	// use slide text as default for the text to speech converter
+				advance: 0, 		// advance to next slide after given time in milliseconds after audio has played, use negative value to not advance
+				autoplay: false,	// automatically start slideshow
+				defaultDuration: 5,	// default duration in seconds if no audio is available
+				defaultAudios: true,	// try to play audios with names such as audio/1.2.ogg
+				playerOpacity: 0.05,	// opacity value of audio player if unfocused
+				playerStyle: 'position: fixed; bottom: 4px; left: 25%; width: 50%; height:75px; z-index: 33;', // style used for container of audio controls
+				startAtFragment: false, // when moving to a slide, start at the current fragment or at the start of the slide
+			},
+			
+			chalkboard: { // font-awesome.min.css must be available
+					//src: "chalkboard/chalkboard.json",
+					storage: "chalkboard-demo",
+				},
+			
+			customcontrols: {
+					controls: [
+      						{
+						  id: 'toggle-overview',
+						  title: 'Toggle overview (O)',
+						  icon: '<i class="fa fa-th"></i>',
+						  action: 'Reveal.toggleOverview();'
+						}
+						,
+						{ icon: '<i class="fa fa-pen-square"></i>',
+						  title: 'Toggle chalkboard (B)',
+						  action: 'RevealChalkboard.toggleChalkboard();'
+						},
+						{ icon: '<i class="fa fa-pen"></i>',
+						  title: 'Toggle notes canvas (C)',
+						  action: 'RevealChalkboard.toggleNotesCanvas();'
+						}
+				]
+			},
+			chart: {
+					defaults: { 
+						color: 'lightgray', // color of labels
+						scale: { 
+							beginAtZero: true, 
+							ticks: { stepSize: 1 },
+							grid: { color: "lightgray" } , // color of grid lines
+						},
+					},
+					line: { borderColor: [ "rgba(20,220,220,.8)" , "rgba(220,120,120,.8)", "rgba(20,120,220,.8)" ], "borderDash": [ [5,10], [0,0] ] }, 
+					bar: { backgroundColor: [ "rgba(20,220,220,.8)" , "rgba(220,120,120,.8)", "rgba(20,120,220,.8)" ]}, 
+					pie: { backgroundColor: [ ["rgba(0,0,0,.8)" , "rgba(220,20,20,.8)", "rgba(20,220,20,.8)", "rgba(220,220,20,.8)", "rgba(20,20,220,.8)"] ]},
+					radar: { borderColor: [ "rgba(20,220,220,.8)" , "rgba(220,120,120,.8)", "rgba(20,120,220,.8)" ]}, 
+			},
+			math: {
+				mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.8/MathJax.js',
+				config: 'TeX-AMS_HTML-full',
+				// pass other options into `MathJax.Hub.Config()`
+				TeX: { Macros: { RR: "{\\bf R}" } }
+				},
+				anything: [ 
+				{
+		className: "plot",
+		defaults: {width:500, height: 500, grid:true},
+		initialize: (function(container, options){ options.target = "#"+container.id; functionPlot(options) })
+	 },
+	 {
+		className: "chart",  
+		initialize: (function(container, options){ container.chart = new Chart(container.getContext("2d"), options);  })
+	 },
+	 {
+		className: "anything",
+		initialize: (function(container, options){ if (options && options.initialize) { options.initialize(container)} })
+	 },
+					],
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: (window.location.search.match(/print-pdf/gi) ? printPlugins : plugins ) 
+		});
+			
+
+
+	    // Change chalkboard theme : 
+		function changeTheme(input) {
+			var config = {};
+			config.theme = input.value;
+			Reveal.getPlugin("RevealChalkboard").configure(config);
+			input.blur();
+		}
+
+		// // Handle the message inside the webview
+        // window.addEventListener('message', event => {
+
+        //     const message = event.data; // The JSON data our extension sent
+
+        //     switch (message.command) {
+        //         case 'refactor':
+        //             Reveal.toggleHelp();
+        //     }
+        // });
+
+		if (window.location.search.match(/print-pdf-now/gi)) {
+      		setTimeout(() => {
+				window.print();
+			  }, 2500);
+			
+    }
+		
+
+	</script>
+
+</body>
+
+</html>
